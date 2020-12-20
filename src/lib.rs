@@ -19,6 +19,10 @@ fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Vec<Listener<
     })
 }
 
+fn callback<'a, T, F: Fn(&T) -> () + 'a>(callback: F) -> Listener<'a, T> {
+    return Box::new(callback)
+}
+
 fn push<T>(value: T, listener: Listener<T>) {
     (listener)(&value)
 }
