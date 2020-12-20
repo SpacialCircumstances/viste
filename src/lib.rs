@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 type Listener<'a, T> = Box<dyn Fn(&T) -> () + 'a>;
 
 fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, listeners: Vec<Listener<'a, T>>) -> Listener<'a, F> {
@@ -14,6 +16,21 @@ fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Vec<Listener<
         if filter(t) {
             for l in &listeners {
                 (l)(t)
+            }
+        }
+    })
+}
+
+fn cache<'a, T: Copy + Eq + 'a>(listeners: Vec<Listener<'a, T>>) -> Listener<'a, T> {
+    let mut cached: Cell<Option<T>> = Cell::new(None);
+    return Box::new(move |t| {
+        match &cached.get() {
+            Some(old) if old == t => (),
+            _ => {
+                cached.replace(Some(*t));
+                for l in &listeners {
+                    (l)(t)
+                }
             }
         }
     })
