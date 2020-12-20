@@ -1,7 +1,7 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+trait Listener<T> {
+    fn invoke(&mut self, param: &T);
+}
+
+trait Observable<T> {
+    fn subscribe<>(&mut self, listener: dyn Listener<T>);
 }
