@@ -1,4 +1,5 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::ops::DerefMut;
 
 struct Listener<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
 
@@ -25,14 +26,14 @@ impl<'a, T> Listeners<'a, T> {
 }
 
 fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, listeners: Listeners<'a, T>) -> Listener<'a, F> {
-    return Listener::new(move |f| {
+    Listener::new(move |f| {
         let t = mapper(f);
         listeners.notify_all(&t)
     })
 }
 
 fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Listeners<'a, T>) -> Listener<'a, T> {
-    return Listener::new(move |t| {
+    Listener::new(move |t| {
         if filter(t) {
             listeners.notify_all(t);
         }
@@ -41,7 +42,7 @@ fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Listeners<'a,
 
 fn cache<'a, T: Copy + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
     let mut cached: Cell<Option<T>> = Cell::new(None);
-    return Listener::new(move |t| {
+    Listener::new(move |t| {
         match &cached.get() {
             Some(old) if old == t => (),
             _ => {
@@ -52,12 +53,25 @@ fn cache<'a, T: Copy + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> 
     })
 }
 
+fn cache_clone<'a, T: Clone + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
+    let mut cached: RefCell<Option<T>> = RefCell::new(None);
+    Listener::new(move |t| {
+       match cached.borrow_mut().deref_mut() {
+           Some(old) if old == t => (),
+           x => {
+               *x = Some(t.clone());
+               listeners.notify_all(t);
+           }
+       };
+    })
+}
+
 fn callback<'a, T, F: Fn(&T) -> () + 'a>(callback: F) -> Listener<'a, T> {
-    return Listener::new(callback)
+    Listener::new(callback)
 }
 
 fn connect<'a, T: 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
-    return Listener::new(move |t| {
+    Listener::new(move |t| {
         listeners.notify_all(t);
     })
 }
