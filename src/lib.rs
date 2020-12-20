@@ -1,6 +1,16 @@
 use std::cell::Cell;
 
-type Listener<'a, T> = Box<dyn Fn(&T) -> () + 'a>;
+struct Listener<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
+
+impl<'a, T> Listener<'a, T> {
+    pub fn new<F: Fn(&T) -> () + 'a>(fun: F) -> Self {
+        Listener(Box::new(fun))
+    }
+
+    pub fn invoke(&self, data: &T) {
+        (self.0)(data)
+    }
+}
 
 struct Listeners<'a, T>(Vec<Listener<'a, T>>);
 
@@ -10,19 +20,19 @@ impl<'a, T> Listeners<'a, T> {
     }
 
     pub fn notify_all(&self, data: &T) {
-        self.0.iter().for_each(|l| (l)(data));
+        self.0.iter().for_each(|l| l.invoke(data));
     }
 }
 
 fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, listeners: Listeners<'a, T>) -> Listener<'a, F> {
-    return Box::new(move |f| {
+    return Listener::new(move |f| {
         let t = mapper(f);
         listeners.notify_all(&t)
     })
 }
 
 fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Listeners<'a, T>) -> Listener<'a, T> {
-    return Box::new(move |t| {
+    return Listener::new(move |t| {
         if filter(t) {
             listeners.notify_all(t);
         }
@@ -31,7 +41,7 @@ fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Listeners<'a,
 
 fn cache<'a, T: Copy + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
     let mut cached: Cell<Option<T>> = Cell::new(None);
-    return Box::new(move |t| {
+    return Listener::new(move |t| {
         match &cached.get() {
             Some(old) if old == t => (),
             _ => {
@@ -43,15 +53,11 @@ fn cache<'a, T: Copy + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> 
 }
 
 fn callback<'a, T, F: Fn(&T) -> () + 'a>(callback: F) -> Listener<'a, T> {
-    return Box::new(callback)
-}
-
-fn push<T>(value: T, listener: Listener<T>) {
-    (listener)(&value)
+    return Listener::new(callback)
 }
 
 fn connect<'a, T: 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
-    return Box::new(move |t| {
+    return Listener::new(move |t| {
         listeners.notify_all(t);
     })
 }
