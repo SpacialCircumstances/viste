@@ -71,3 +71,7 @@ pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (Pipe<'a, T>, Rc<RefCell<T>
     });
     (pipe, store)
 }
+
+pub fn dead_end<'a, T>() -> Pipe<'a, T> {
+    Pipe::new(|_| {})
+}
