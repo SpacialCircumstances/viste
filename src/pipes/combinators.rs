@@ -61,6 +61,16 @@ pub fn cache_hash<'a, T: Hash + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, T> {
     })
 }
 
+pub fn reduce<'a, T: 'a, S: 'a, F: Fn(&T, &mut S) -> () + 'a>(reducer: F, initial: S, out: Pipes<'a, S>) -> Pipe<'a, T> {
+    let state = RefCell::new(initial);
+    Pipe::new(move |t: &T| {
+        let mut s = state.borrow_mut();
+        reducer(t, &mut s);
+        drop(s);
+        out.distribute(&*state.borrow());
+    })
+}
+
 pub fn copied<'a, T: Copy + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, &T> {
     Pipe::new(move |t| {
         pipes.distribute(*t);
