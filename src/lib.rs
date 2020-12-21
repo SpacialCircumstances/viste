@@ -1,5 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::ops::DerefMut;
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 struct Listener<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
 
@@ -63,6 +65,22 @@ fn cache_clone<'a, T: Clone + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<
                listeners.notify_all(t);
            }
        };
+    })
+}
+
+fn cache_hash<'a, T: Hash + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
+    let mut cached: Cell<Option<u64>> = Cell::new(None);
+    Listener::new(move |t: &T| {
+        let mut hasher = DefaultHasher::new();
+        t.hash(&mut hasher);
+        let new_hash = hasher.finish();
+        match cached.get() {
+            Some(old_hash) if old_hash == new_hash => (),
+            _ => {
+                cached.set(Some(new_hash));
+                listeners.notify_all(t);
+            }
+        }
     })
 }
 
