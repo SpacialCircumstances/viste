@@ -27,6 +27,12 @@ impl<'a, T: 'a> From<Rc<Listener<'a, T>>>  for Listener<'a, T> {
     }
 }
 
+impl<'a, T: 'a> From<Listeners<'a, T>> for Listener<'a, T> {
+    fn from(l: Listeners<'a, T>) -> Self {
+        Listener::new(move |t| l.notify_all(t))
+    }
+}
+
 struct Listeners<'a, T>(Vec<Listener<'a, T>>);
 
 impl<'a, T> Listeners<'a, T> {
@@ -34,8 +40,18 @@ impl<'a, T> Listeners<'a, T> {
         Listeners(Vec::with_capacity(1))
     }
 
+    pub fn single(listener: Listener<'a, T>) -> Self {
+        Listeners(vec![ listener ])
+    }
+
     pub fn notify_all(&self, data: &T) {
         self.0.iter().for_each(|l| l.invoke(data));
+    }
+}
+
+impl<'a, T> From<Listener<'a, T>> for Listeners<'a, T> {
+    fn from(l: Listener<'a, T>) -> Self {
+        Listeners::single(l)
     }
 }
 
@@ -93,15 +109,5 @@ fn cache_hash<'a, T: Hash + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> 
                 listeners.notify_all(t);
             }
         }
-    })
-}
-
-fn callback<'a, T, F: Fn(&T) -> () + 'a>(callback: F) -> Listener<'a, T> {
-    Listener::new(callback)
-}
-
-fn connect<'a, T: 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
-    Listener::new(move |t| {
-        listeners.notify_all(t);
     })
 }
