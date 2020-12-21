@@ -111,3 +111,21 @@ fn cache_hash<'a, T: Hash + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> 
         }
     })
 }
+
+fn store<'a, T: Copy + 'a>(default: T) -> (Listener<'a, T>, Rc<Cell<T>>) {
+    let store = Rc::new(Cell::new(default));
+    let c = store.clone();
+    let listener = Listener::new(move |t| {
+        c.set(*t)
+    });
+    (listener, store)
+}
+
+fn store_clone<'a, T: Clone + 'a>(default: T) -> (Listener<'a, T>, Rc<RefCell<T>>) {
+    let store = Rc::new(RefCell::new(default));
+    let c = store.clone();
+    let listener = Listener::new(move |t: &T| {
+        c.replace(t.clone());
+    });
+    (listener, store)
+}
