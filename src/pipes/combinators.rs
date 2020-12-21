@@ -2,7 +2,6 @@ use std::cell::{Cell, RefCell};
 use std::ops::DerefMut;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
-use std::rc::Rc;
 use crate::pipes::{Pipe, Pipes};
 
 pub fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, pipes: Pipes<'a, T>) -> Pipe<'a, F> {
@@ -60,22 +59,4 @@ pub fn cache_hash<'a, T: Hash + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, T> {
             }
         }
     })
-}
-
-pub fn store<'a, T: Copy + 'a>(default: T) -> (Pipe<'a, T>, Rc<Cell<T>>) {
-    let store = Rc::new(Cell::new(default));
-    let c = store.clone();
-    let pipe = Pipe::new(move |t| {
-        c.set(*t)
-    });
-    (pipe, store)
-}
-
-pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (Pipe<'a, T>, Rc<RefCell<T>>) {
-    let store = Rc::new(RefCell::new(default));
-    let c = store.clone();
-    let pipe = Pipe::new(move |t: &T| {
-        c.replace(t.clone());
-    });
-    (pipe, store)
 }

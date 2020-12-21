@@ -1,6 +1,8 @@
 use std::rc::Rc;
+use std::cell::{RefCell, Cell};
 
 pub mod combinators;
+pub mod channels;
 
 pub struct Pipe<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
 
@@ -50,4 +52,22 @@ impl<'a, T> From<Pipe<'a, T>> for Pipes<'a, T> {
     fn from(p: Pipe<'a, T>) -> Self {
         Pipes::single(p)
     }
+}
+
+pub fn store<'a, T: Copy + 'a>(default: T) -> (Pipe<'a, T>, Rc<Cell<T>>) {
+    let store = Rc::new(Cell::new(default));
+    let c = store.clone();
+    let pipe = Pipe::new(move |t| {
+        c.set(*t)
+    });
+    (pipe, store)
+}
+
+pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (Pipe<'a, T>, Rc<RefCell<T>>) {
+    let store = Rc::new(RefCell::new(default));
+    let c = store.clone();
+    let pipe = Pipe::new(move |t: &T| {
+        c.replace(t.clone());
+    });
+    (pipe, store)
 }
