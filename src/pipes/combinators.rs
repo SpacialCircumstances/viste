@@ -7,14 +7,14 @@ use crate::pipes::{Pipe, Pipes};
 pub fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, pipes: Pipes<'a, T>) -> Pipe<'a, F> {
     Pipe::new(move |f| {
         let t = mapper(f);
-        pipes.notify_all(&t)
+        pipes.distribute(&t)
     })
 }
 
 pub fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, pipes: Pipes<'a, T>) -> Pipe<'a, T> {
     Pipe::new(move |t| {
         if filter(t) {
-            pipes.notify_all(t);
+            pipes.distribute(t);
         }
     })
 }
@@ -26,7 +26,7 @@ pub fn cache<'a, T: Copy + Eq + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, T> {
             Some(old) if old == t => (),
             _ => {
                 cached.replace(Some(*t));
-                pipes.notify_all(t);
+                pipes.distribute(t);
             }
         }
     })
@@ -39,7 +39,7 @@ pub fn cache_clone<'a, T: Clone + Eq + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, T> {
             Some(old) if old == t => (),
             x => {
                 *x = Some(t.clone());
-                pipes.notify_all(t);
+                pipes.distribute(t);
             }
         };
     })
@@ -55,7 +55,7 @@ pub fn cache_hash<'a, T: Hash + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, T> {
             Some(old_hash) if old_hash == new_hash => (),
             _ => {
                 cached.set(Some(new_hash));
-                pipes.notify_all(t);
+                pipes.distribute(t);
             }
         }
     })
@@ -63,6 +63,6 @@ pub fn cache_hash<'a, T: Hash + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, T> {
 
 pub fn copied<'a, T: Copy + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, &T> {
     Pipe::new(move |t| {
-        pipes.notify_all(*t);
+        pipes.distribute(*t);
     })
 }

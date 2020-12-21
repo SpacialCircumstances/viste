@@ -11,7 +11,7 @@ impl<'a, T> Pipe<'a, T> {
         Self(Box::new(fun))
     }
 
-    pub fn invoke(&self, data: &T) {
+    pub fn run(&self, data: &T) {
         (self.0)(data)
     }
 
@@ -22,13 +22,13 @@ impl<'a, T> Pipe<'a, T> {
 
 impl<'a, T: 'a> From<Rc<Pipe<'a, T>>>  for Pipe<'a, T> {
     fn from(l: Rc<Pipe<'a, T>>) -> Self {
-        Pipe::new(move |t| l.invoke(t))
+        Pipe::new(move |t| l.run(t))
     }
 }
 
 impl<'a, T: 'a> From<Pipes<'a, T>> for Pipe<'a, T> {
     fn from(l: Pipes<'a, T>) -> Self {
-        Pipe::new(move |t| l.notify_all(t))
+        Pipe::new(move |t| l.distribute(t))
     }
 }
 
@@ -43,8 +43,8 @@ impl<'a, T> Pipes<'a, T> {
         Pipes(vec![ pipe ])
     }
 
-    pub fn notify_all(&self, data: &T) {
-        self.0.iter().for_each(|l| l.invoke(data));
+    pub fn distribute(&self, data: &T) {
+        self.0.iter().for_each(|l| l.run(data));
     }
 }
 
