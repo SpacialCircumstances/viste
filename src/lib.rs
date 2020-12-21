@@ -2,8 +2,14 @@ use std::cell::{Cell, RefCell};
 use std::ops::DerefMut;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::rc::Rc;
+use std::sync::Arc;
 
 struct Listener<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
+
+trait Wrappable<'a, T> {
+    fn wrap(self) -> Listener<'a, T>;
+}
 
 impl<'a, T> Listener<'a, T> {
     pub fn new<F: Fn(&T) -> () + 'a>(fun: F) -> Self {
@@ -12,6 +18,16 @@ impl<'a, T> Listener<'a, T> {
 
     pub fn invoke(&self, data: &T) {
         (self.0)(data)
+    }
+
+    pub fn cloneable(self) -> Rc<Self> {
+        Rc::new(self)
+    }
+}
+
+impl<'a, T: 'a> Wrappable<'a, T> for Rc<Listener<'a, T>> {
+    fn wrap(self) -> Listener<'a, T> {
+        Listener::new(move |t| self.invoke(t))
     }
 }
 
