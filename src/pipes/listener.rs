@@ -3,9 +3,8 @@ use std::ops::DerefMut;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::rc::Rc;
-use std::sync::Arc;
 
-struct Listener<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
+pub struct Listener<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
 
 impl<'a, T> Listener<'a, T> {
     pub fn new<F: Fn(&T) -> () + 'a>(fun: F) -> Self {
@@ -33,7 +32,7 @@ impl<'a, T: 'a> From<Listeners<'a, T>> for Listener<'a, T> {
     }
 }
 
-struct Listeners<'a, T>(Vec<Listener<'a, T>>);
+pub struct Listeners<'a, T>(Vec<Listener<'a, T>>);
 
 impl<'a, T> Listeners<'a, T> {
     pub fn new() -> Self {
@@ -55,14 +54,14 @@ impl<'a, T> From<Listener<'a, T>> for Listeners<'a, T> {
     }
 }
 
-fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, listeners: Listeners<'a, T>) -> Listener<'a, F> {
+pub fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, listeners: Listeners<'a, T>) -> Listener<'a, F> {
     Listener::new(move |f| {
         let t = mapper(f);
         listeners.notify_all(&t)
     })
 }
 
-fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Listeners<'a, T>) -> Listener<'a, T> {
+pub fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Listeners<'a, T>) -> Listener<'a, T> {
     Listener::new(move |t| {
         if filter(t) {
             listeners.notify_all(t);
@@ -70,7 +69,7 @@ fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, listeners: Listeners<'a,
     })
 }
 
-fn cache<'a, T: Copy + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
+pub fn cache<'a, T: Copy + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
     let mut cached: Cell<Option<T>> = Cell::new(None);
     Listener::new(move |t| {
         match &cached.get() {
@@ -83,7 +82,7 @@ fn cache<'a, T: Copy + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> 
     })
 }
 
-fn cache_clone<'a, T: Clone + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
+pub fn cache_clone<'a, T: Clone + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
     let mut cached: RefCell<Option<T>> = RefCell::new(None);
     Listener::new(move |t| {
         match cached.borrow_mut().deref_mut() {
@@ -96,8 +95,8 @@ fn cache_clone<'a, T: Clone + Eq + 'a>(listeners: Listeners<'a, T>) -> Listener<
     })
 }
 
-fn cache_hash<'a, T: Hash + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
-    let mut cached: Cell<Option<u64>> = Cell::new(None);
+pub fn cache_hash<'a, T: Hash + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> {
+    let cached: Cell<Option<u64>> = Cell::new(None);
     Listener::new(move |t: &T| {
         let mut hasher = DefaultHasher::new();
         t.hash(&mut hasher);
@@ -112,7 +111,7 @@ fn cache_hash<'a, T: Hash + 'a>(listeners: Listeners<'a, T>) -> Listener<'a, T> 
     })
 }
 
-fn store<'a, T: Copy + 'a>(default: T) -> (Listener<'a, T>, Rc<Cell<T>>) {
+pub fn store<'a, T: Copy + 'a>(default: T) -> (Listener<'a, T>, Rc<Cell<T>>) {
     let store = Rc::new(Cell::new(default));
     let c = store.clone();
     let listener = Listener::new(move |t| {
@@ -121,7 +120,7 @@ fn store<'a, T: Copy + 'a>(default: T) -> (Listener<'a, T>, Rc<Cell<T>>) {
     (listener, store)
 }
 
-fn store_clone<'a, T: Clone + 'a>(default: T) -> (Listener<'a, T>, Rc<RefCell<T>>) {
+pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (Listener<'a, T>, Rc<RefCell<T>>) {
     let store = Rc::new(RefCell::new(default));
     let c = store.clone();
     let listener = Listener::new(move |t: &T| {
