@@ -60,3 +60,9 @@ pub fn cache_hash<'a, T: Hash + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, T> {
         }
     })
 }
+
+pub fn copied<'a, T: Copy + 'a>(pipes: Pipes<'a, T>) -> Pipe<'a, &T> {
+    Pipe::new(move |t| {
+        pipes.notify_all(*t);
+    })
+}
