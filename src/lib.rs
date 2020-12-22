@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 use std::ops::Deref;
+use std::marker::PhantomData;
 
 pub mod combinators;
 pub mod channels;
@@ -74,7 +75,9 @@ pub trait Rv<T>: Clone {
 }
 
 pub trait RvExt<T>: Rv<T> {
-    fn select<U, M: Fn(&T) -> &U + Clone>(&self, mapper: M) -> SelectRv<T, U, M>;
+    fn select<U, M: Fn(&T) -> &U + Clone>(&self, mapper: M) -> SelectRv<T, U, M, Self> {
+        SelectRv(self.clone(), mapper, PhantomData::default())
+    }
 }
 
 pub struct OwnedRv<T>(Rc<RefCell<T>>);
@@ -91,17 +94,17 @@ impl<T> Rv<T> for OwnedRv<T> {
     }
 }
 
-pub struct SelectRv<T, T2, M: Fn(&T) -> &T2 + Clone>(Rc<RefCell<T>>, M);
+pub struct SelectRv<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>>(R, M, PhantomData<T>);
 
-impl<T, T2, M: Fn(&T) -> &T2 + Clone> Clone for SelectRv<T, T2, M> {
+impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>> Clone for SelectRv<T, T2, M, R> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone())
+        Self(self.0.clone(), self.1.clone(), PhantomData::default())
     }
 }
 
-impl<T, T2, M: Fn(&T) -> &T2 + Clone> Rv<T2> for SelectRv<T, T2, M> {
+impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>> Rv<T2> for SelectRv<T, T2, M, R> {
     fn data(&self) -> RefWrapper<T2> {
-        RefWrapper(Ref::map(self.0.borrow(), &self.1))
+        RefWrapper(Ref::map(self.0.data().0, &self.1))
     }
 }
 
