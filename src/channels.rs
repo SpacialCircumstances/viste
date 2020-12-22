@@ -1,5 +1,5 @@
 use std::sync::mpsc::{Sender, SendError};
-use crate::pipes::{Pipe, Pipes};
+use crate::{Pipe, Pipes};
 
 pub fn send<'a, T: Copy + 'a>(sender: Sender<T>, result: Pipes<'a, Result<(), SendError<T>>>) -> Pipe<'a, T> {
     Pipe::new(move |t| {
