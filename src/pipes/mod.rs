@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use std::cell::{RefCell, Cell};
+use std::cell::{Ref, RefCell};
+use std::ops::Deref;
 
 pub mod combinators;
 pub mod channels;
@@ -54,24 +55,46 @@ impl<'a, T> From<Pipe<'a, T>> for Pipes<'a, T> {
     }
 }
 
-pub fn store<'a, T: Copy + 'a>(default: T) -> (Pipe<'a, T>, Rc<Cell<T>>) {
-    let store = Rc::new(Cell::new(default));
-    let c = store.clone();
-    let pipe = Pipe::new(move |t| {
-        c.set(*t)
-    });
-    (pipe, store)
+pub fn dead_end<'a, T>() -> Pipe<'a, T> {
+    Pipe::new(|_| {})
 }
 
-pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (Pipe<'a, T>, Rc<RefCell<T>>) {
+pub struct RefWrapper<'a, T>(Ref<'a, T>);
+
+impl<'a, T> Deref for RefWrapper<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+
+pub trait Rv<T> {
+    fn data(&self) -> RefWrapper<T>;
+}
+
+pub struct OwnedRv<T>(Rc<RefCell<T>>);
+
+impl<T> Rv<T> for OwnedRv<T> {
+    fn data(&self) -> RefWrapper<T> {
+        RefWrapper(self.0.borrow())
+    }
+}
+
+pub fn store<'a, T: Copy + 'a>(default: T) -> (Pipe<'a, T>, OwnedRv<T>) {
+    let store = Rc::new(RefCell::new(default));
+    let c = store.clone();
+    let pipe = Pipe::new(move |t| {
+        c.replace(*t);
+    });
+    (pipe, OwnedRv(store))
+}
+
+pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (Pipe<'a, T>, OwnedRv<T>) {
     let store = Rc::new(RefCell::new(default));
     let c = store.clone();
     let pipe = Pipe::new(move |t: &T| {
         c.replace(t.clone());
     });
-    (pipe, store)
-}
-
-pub fn dead_end<'a, T>() -> Pipe<'a, T> {
-    Pipe::new(|_| {})
+    (pipe, OwnedRv(store))
 }
