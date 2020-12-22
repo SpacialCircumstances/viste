@@ -94,6 +94,10 @@ impl<T> Rv<T> for OwnedRv<T> {
     }
 }
 
+impl<T> RvExt<T> for OwnedRv<T> {
+
+}
+
 pub struct SelectRv<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>>(R, M, PhantomData<T>);
 
 impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>> Clone for SelectRv<T, T2, M, R> {
@@ -106,6 +110,10 @@ impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>> Rv<T2> for SelectRv<T, T2, M, R>
     fn data(&self) -> RefWrapper<T2> {
         RefWrapper(Ref::map(self.0.data().0, &self.1))
     }
+}
+
+impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>> RvExt<T2> for SelectRv<T, T2, M, R> {
+
 }
 
 pub fn store<'a, T: Copy + 'a>(default: T) -> (Pipe<'a, T>, OwnedRv<T>) {
