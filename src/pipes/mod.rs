@@ -73,11 +73,29 @@ pub trait Rv<T> {
     fn data(&self) -> RefWrapper<T>;
 }
 
+pub trait RvExt<T>: Rv<T> {
+    fn select<U, M: Fn(&T) -> &U>(&self, mapper: M) -> SelectRv<T, U, M>;
+}
+
 pub struct OwnedRv<T>(Rc<RefCell<T>>);
 
 impl<T> Rv<T> for OwnedRv<T> {
     fn data(&self) -> RefWrapper<T> {
         RefWrapper(self.0.borrow())
+    }
+}
+
+impl<T> RvExt<T> for OwnedRv<T> {
+    fn select<U, M: Fn(&T) -> &U>(&self, mapper: M) -> SelectRv<T, U, M> {
+        SelectRv(self.0.clone(), mapper)
+    }
+}
+
+pub struct SelectRv<T, T2, M: Fn(&T) -> &T2>(Rc<RefCell<T>>, M);
+
+impl<T, T2, M: Fn(&T) -> &T2> Rv<T2> for SelectRv<T, T2, M> {
+    fn data(&self) -> RefWrapper<T2> {
+        RefWrapper(Ref::map(self.0.borrow(), &self.1))
     }
 }
 
