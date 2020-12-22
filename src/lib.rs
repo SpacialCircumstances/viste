@@ -69,15 +69,21 @@ impl<'a, T> Deref for RefWrapper<'a, T> {
     }
 }
 
-pub trait Rv<T> {
+pub trait Rv<T>: Clone {
     fn data(&self) -> RefWrapper<T>;
 }
 
 pub trait RvExt<T>: Rv<T> {
-    fn select<U, M: Fn(&T) -> &U>(&self, mapper: M) -> SelectRv<T, U, M>;
+    fn select<U, M: Fn(&T) -> &U + Clone>(&self, mapper: M) -> SelectRv<T, U, M>;
 }
 
 pub struct OwnedRv<T>(Rc<RefCell<T>>);
+
+impl<T> Clone for OwnedRv<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl<T> Rv<T> for OwnedRv<T> {
     fn data(&self) -> RefWrapper<T> {
@@ -85,15 +91,15 @@ impl<T> Rv<T> for OwnedRv<T> {
     }
 }
 
-impl<T> RvExt<T> for OwnedRv<T> {
-    fn select<U, M: Fn(&T) -> &U>(&self, mapper: M) -> SelectRv<T, U, M> {
-        SelectRv(self.0.clone(), mapper)
+pub struct SelectRv<T, T2, M: Fn(&T) -> &T2 + Clone>(Rc<RefCell<T>>, M);
+
+impl<T, T2, M: Fn(&T) -> &T2 + Clone> Clone for SelectRv<T, T2, M> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone())
     }
 }
 
-pub struct SelectRv<T, T2, M: Fn(&T) -> &T2>(Rc<RefCell<T>>, M);
-
-impl<T, T2, M: Fn(&T) -> &T2> Rv<T2> for SelectRv<T, T2, M> {
+impl<T, T2, M: Fn(&T) -> &T2 + Clone> Rv<T2> for SelectRv<T, T2, M> {
     fn data(&self) -> RefWrapper<T2> {
         RefWrapper(Ref::map(self.0.borrow(), &self.1))
     }
