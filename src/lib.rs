@@ -129,3 +129,5 @@ pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (RWire<'a, T>, OwnedRValue<
     });
     (pipe, OwnedRValue(store))
 }
+
+pub struct RStream<'a, T>(Box<dyn Fn(T) -> () + 'a>);
