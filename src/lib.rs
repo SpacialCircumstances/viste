@@ -6,9 +6,9 @@ use std::marker::PhantomData;
 pub mod combinators;
 pub mod channels;
 
-pub struct Pipe<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
+pub struct RWire<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
 
-impl<'a, T> Pipe<'a, T> {
+impl<'a, T> RWire<'a, T> {
     pub fn new<F: Fn(&T) -> () + 'a>(fun: F) -> Self {
         Self(Box::new(fun))
     }
@@ -22,27 +22,27 @@ impl<'a, T> Pipe<'a, T> {
     }
 }
 
-impl<'a, T: 'a> From<Rc<Pipe<'a, T>>>  for Pipe<'a, T> {
-    fn from(l: Rc<Pipe<'a, T>>) -> Self {
-        Pipe::new(move |t| l.run(t))
+impl<'a, T: 'a> From<Rc<RWire<'a, T>>>  for RWire<'a, T> {
+    fn from(l: Rc<RWire<'a, T>>) -> Self {
+        RWire::new(move |t| l.run(t))
     }
 }
 
-impl<'a, T: 'a> From<Pipes<'a, T>> for Pipe<'a, T> {
-    fn from(l: Pipes<'a, T>) -> Self {
-        Pipe::new(move |t| l.distribute(t))
+impl<'a, T: 'a> From<RWires<'a, T>> for RWire<'a, T> {
+    fn from(l: RWires<'a, T>) -> Self {
+        RWire::new(move |t| l.distribute(t))
     }
 }
 
-pub struct Pipes<'a, T>(Vec<Pipe<'a, T>>);
+pub struct RWires<'a, T>(Vec<RWire<'a, T>>);
 
-impl<'a, T> Pipes<'a, T> {
+impl<'a, T> RWires<'a, T> {
     pub fn new() -> Self {
         Self(Vec::with_capacity(1))
     }
 
-    pub fn single(pipe: Pipe<'a, T>) -> Self {
-        Pipes(vec![ pipe ])
+    pub fn single(pipe: RWire<'a, T>) -> Self {
+        RWires(vec![ pipe ])
     }
 
     pub fn distribute(&self, data: &T) {
@@ -50,14 +50,14 @@ impl<'a, T> Pipes<'a, T> {
     }
 }
 
-impl<'a, T> From<Pipe<'a, T>> for Pipes<'a, T> {
-    fn from(p: Pipe<'a, T>) -> Self {
-        Pipes::single(p)
+impl<'a, T> From<RWire<'a, T>> for RWires<'a, T> {
+    fn from(p: RWire<'a, T>) -> Self {
+        RWires::single(p)
     }
 }
 
-pub fn dead_end<'a, T>() -> Pipe<'a, T> {
-    Pipe::new(|_| {})
+pub fn dead_end<'a, T>() -> RWire<'a, T> {
+    RWire::new(|_| {})
 }
 
 pub struct RefWrapper<'a, T>(Ref<'a, T>);
@@ -70,62 +70,62 @@ impl<'a, T> Deref for RefWrapper<'a, T> {
     }
 }
 
-pub trait Rv<T>: Clone {
+pub trait RValue<T>: Clone {
     fn data(&self) -> RefWrapper<T>;
 }
 
-pub trait RvExt<T>: Rv<T> {
-    fn select<U, M: Fn(&T) -> &U + Clone>(&self, mapper: M) -> SelectRv<T, U, M, Self> {
-        SelectRv(self.clone(), mapper, PhantomData::default())
+pub trait RValueExt<T>: RValue<T> {
+    fn select<U, M: Fn(&T) -> &U + Clone>(&self, mapper: M) -> SelectRValue<T, U, M, Self> {
+        SelectRValue(self.clone(), mapper, PhantomData::default())
     }
 }
 
-impl<T, R: Rv<T>> RvExt<T> for R {
+impl<T, R: RValue<T>> RValueExt<T> for R {
 
 }
 
-pub struct OwnedRv<T>(Rc<RefCell<T>>);
+pub struct OwnedRValue<T>(Rc<RefCell<T>>);
 
-impl<T> Clone for OwnedRv<T> {
+impl<T> Clone for OwnedRValue<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<T> Rv<T> for OwnedRv<T> {
+impl<T> RValue<T> for OwnedRValue<T> {
     fn data(&self) -> RefWrapper<T> {
         RefWrapper(self.0.borrow())
     }
 }
 
-pub struct SelectRv<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>>(R, M, PhantomData<T>);
+pub struct SelectRValue<T, T2, M: Fn(&T) -> &T2 + Clone, R: RValue<T>>(R, M, PhantomData<T>);
 
-impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>> Clone for SelectRv<T, T2, M, R> {
+impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: RValue<T>> Clone for SelectRValue<T, T2, M, R> {
     fn clone(&self) -> Self {
         Self(self.0.clone(), self.1.clone(), PhantomData::default())
     }
 }
 
-impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: Rv<T>> Rv<T2> for SelectRv<T, T2, M, R> {
+impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: RValue<T>> RValue<T2> for SelectRValue<T, T2, M, R> {
     fn data(&self) -> RefWrapper<T2> {
         RefWrapper(Ref::map(self.0.data().0, &self.1))
     }
 }
 
-pub fn store<'a, T: Copy + 'a>(default: T) -> (Pipe<'a, T>, OwnedRv<T>) {
+pub fn store<'a, T: Copy + 'a>(default: T) -> (RWire<'a, T>, OwnedRValue<T>) {
     let store = Rc::new(RefCell::new(default));
     let c = store.clone();
-    let pipe = Pipe::new(move |t| {
+    let pipe = RWire::new(move |t| {
         c.replace(*t);
     });
-    (pipe, OwnedRv(store))
+    (pipe, OwnedRValue(store))
 }
 
-pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (Pipe<'a, T>, OwnedRv<T>) {
+pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (RWire<'a, T>, OwnedRValue<T>) {
     let store = Rc::new(RefCell::new(default));
     let c = store.clone();
-    let pipe = Pipe::new(move |t: &T| {
+    let pipe = RWire::new(move |t: &T| {
         c.replace(t.clone());
     });
-    (pipe, OwnedRv(store))
+    (pipe, OwnedRValue(store))
 }

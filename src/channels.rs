@@ -1,14 +1,14 @@
 use std::sync::mpsc::{Sender, SendError};
-use crate::{Pipe, Pipes};
+use crate::{RWire, RWires};
 
-pub fn send<'a, T: Copy + 'a>(sender: Sender<T>, result: Pipes<'a, Result<(), SendError<T>>>) -> Pipe<'a, T> {
-    Pipe::new(move |t| {
+pub fn send<'a, T: Copy + 'a>(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> RWire<'a, T> {
+    RWire::new(move |t| {
         result.distribute(&sender.send(*t));
     })
 }
 
-pub fn send_clone<'a, T: Clone + 'a>(sender: Sender<T>, result: Pipes<'a, Result<(), SendError<T>>>) -> Pipe<'a, T> {
-    Pipe::new(move |t: &T| {
+pub fn send_clone<'a, T: Clone + 'a>(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> RWire<'a, T> {
+    RWire::new(move |t: &T| {
         result.distribute(&sender.send(t.clone()));
     })
 }
