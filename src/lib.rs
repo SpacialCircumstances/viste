@@ -3,8 +3,7 @@ use std::cell::{Ref, RefCell};
 use std::ops::Deref;
 use std::marker::PhantomData;
 
-pub mod combinators;
-pub mod channels;
+pub mod wires;
 
 pub struct RWire<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
 

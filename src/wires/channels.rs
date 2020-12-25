@@ -1,5 +1,5 @@
 use std::sync::mpsc::{Sender, SendError};
-use crate::{RWire, RWires};
+use crate::*;
 
 pub fn send<'a, T: Copy + 'a>(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> RWire<'a, T> {
     RWire::new(move |t| {

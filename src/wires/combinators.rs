@@ -2,7 +2,7 @@ use std::cell::{Cell, RefCell};
 use std::ops::DerefMut;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
-use crate::{RWire, RWires};
+use crate::*;
 
 pub fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, pipes: RWires<'a, T>) -> RWire<'a, F> {
     RWire::new(move |f| {
