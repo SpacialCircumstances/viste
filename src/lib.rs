@@ -19,6 +19,32 @@ impl<'a, T> RWire<'a, T> {
     pub fn cloneable(self) -> Rc<Self> {
         Rc::new(self)
     }
+
+    pub fn dead() -> Self {
+        Self::new(|_| {})
+    }
+}
+
+impl<'a, T: Copy + 'a> RWire<'a, T> {
+    pub fn store(default: T) -> (Self, OwnedRValue<T>) {
+        let store = Rc::new(RefCell::new(default));
+        let c = store.clone();
+        let pipe = RWire::new(move |t| {
+            c.replace(*t);
+        });
+        (pipe, OwnedRValue(store))
+    }
+}
+
+impl<'a, T: Clone + 'a> RWire<'a, T> {
+    pub fn store_clone(default: T) -> (RWire<'a, T>, OwnedRValue<T>) {
+        let store = Rc::new(RefCell::new(default));
+        let c = store.clone();
+        let pipe = RWire::new(move |t: &T| {
+            c.replace(t.clone());
+        });
+        (pipe, OwnedRValue(store))
+    }
 }
 
 impl<'a, T: 'a> From<Rc<RWire<'a, T>>>  for RWire<'a, T> {
@@ -53,10 +79,6 @@ impl<'a, T> From<RWire<'a, T>> for RWires<'a, T> {
     fn from(p: RWire<'a, T>) -> Self {
         RWires::single(p)
     }
-}
-
-pub fn dead_end<'a, T>() -> RWire<'a, T> {
-    RWire::new(|_| {})
 }
 
 pub struct RefWrapper<'a, T>(Ref<'a, T>);
@@ -109,24 +131,6 @@ impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: RValue<T>> RValue<T2> for SelectRValue<
     fn data(&self) -> RefWrapper<T2> {
         RefWrapper(Ref::map(self.0.data().0, &self.1))
     }
-}
-
-pub fn store<'a, T: Copy + 'a>(default: T) -> (RWire<'a, T>, OwnedRValue<T>) {
-    let store = Rc::new(RefCell::new(default));
-    let c = store.clone();
-    let pipe = RWire::new(move |t| {
-        c.replace(*t);
-    });
-    (pipe, OwnedRValue(store))
-}
-
-pub fn store_clone<'a, T: Clone + 'a>(default: T) -> (RWire<'a, T>, OwnedRValue<T>) {
-    let store = Rc::new(RefCell::new(default));
-    let c = store.clone();
-    let pipe = RWire::new(move |t: &T| {
-        c.replace(t.clone());
-    });
-    (pipe, OwnedRValue(store))
 }
 
 pub struct RStream<'a, T>(Box<dyn Fn(T) -> () + 'a>);
