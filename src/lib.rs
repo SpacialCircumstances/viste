@@ -5,6 +5,7 @@ pub use crate::values::*;
 
 pub mod wires;
 pub mod values;
+pub mod streams;
 
 pub struct RWire<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
 
@@ -97,3 +98,17 @@ pub trait RValue<T>: Clone {
 }
 
 pub struct RStream<'a, T>(Box<dyn Fn(T) -> () + 'a>);
+
+impl<'a, T> RStream<'a, T> {
+    pub fn new<F: Fn(T) -> () + 'a>(f: F) -> Self {
+        Self(Box::new(f))
+    }
+
+    pub fn push(&self, value: T) {
+        (self.0)(value)
+    }
+
+    pub fn dropping() -> Self {
+        Self::new(|x| drop(x))
+    }
+}
