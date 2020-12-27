@@ -36,6 +36,10 @@ impl<'a, T: Copy + 'a> RWire<'a, T> {
         });
         (pipe, OwnedRValue::new(store))
     }
+
+    pub fn call_stream(stream: RStream<'a, T>) -> Self {
+        Self::new(move |t| stream.push(*t))
+    }
 }
 
 impl<'a, T: Clone + 'a> RWire<'a, T> {
@@ -46,6 +50,10 @@ impl<'a, T: Clone + 'a> RWire<'a, T> {
             c.replace(t.clone());
         });
         (pipe, OwnedRValue::new(store))
+    }
+
+    pub fn call_stream_clone(stream: RStream<'a, T>) -> Self {
+        Self::new(move |t| stream.push(t.clone()))
     }
 }
 
@@ -97,9 +105,9 @@ pub trait RValue<T>: Clone {
     fn data(&self) -> RefWrapper<T>;
 }
 
-pub struct RStream<'a, T>(Box<dyn Fn(T) -> () + 'a>);
+pub struct RStream<'a, T: 'a>(Box<dyn Fn(T) -> () + 'a>);
 
-impl<'a, T> RStream<'a, T> {
+impl<'a, T: 'a> RStream<'a, T> {
     pub fn new<F: Fn(T) -> () + 'a>(f: F) -> Self {
         Self(Box::new(f))
     }
@@ -110,5 +118,9 @@ impl<'a, T> RStream<'a, T> {
 
     pub fn dropping() -> Self {
         Self::new(|x| drop(x))
+    }
+
+    pub fn wires(wires: RWires<'a, T>) -> Self {
+        Self::new(move |t| wires.distribute(&t))
     }
 }
