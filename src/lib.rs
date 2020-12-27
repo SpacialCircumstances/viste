@@ -123,4 +123,13 @@ impl<'a, T: 'a> RStream<'a, T> {
     pub fn wires(wires: RWires<'a, T>) -> Self {
         Self::new(move |t| wires.distribute(&t))
     }
+
+    pub fn store(default: T) -> (Self, OwnedRValue<T>) {
+        let store = Rc::new(RefCell::new(default));
+        let c = store.clone();
+        let stream = RStream::new(move |t| {
+            c.replace(t);
+        });
+        (stream, OwnedRValue::new(store))
+    }
 }
