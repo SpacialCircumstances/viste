@@ -149,6 +149,12 @@ impl<'a, T: 'a> RStream<'a, T> {
     pub fn cloneable(self) -> Rc<Self> {
         Rc::new(self)
     }
+
+    pub fn send(sender: Sender<T>, result: RStream<'a, Result<(), SendError<T>>>) -> Self {
+        RStream::new(move |t| {
+            result.push(sender.send(t));
+        })
+    }
 }
 
 impl<'a, T: 'a> From<Rc<RStream<'a, T>>>  for RStream<'a, T> {
