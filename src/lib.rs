@@ -132,4 +132,14 @@ impl<'a, T: 'a> RStream<'a, T> {
         });
         (stream, OwnedRValue::new(store))
     }
+
+    pub fn cloneable(self) -> Rc<Self> {
+        Rc::new(self)
+    }
+}
+
+impl<'a, T: 'a> From<Rc<RStream<'a, T>>>  for RStream<'a, T> {
+    fn from(l: Rc<RStream<'a, T>>) -> Self {
+        RStream::new(move |t| l.push(t))
+    }
 }
