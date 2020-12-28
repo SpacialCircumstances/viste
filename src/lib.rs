@@ -157,6 +157,12 @@ impl<'a, T: 'a> RStream<'a, T> {
     }
 }
 
+impl<'a, T: 'a> From<RWires<'a, T>> for RStream<'a, T> {
+    fn from(wires: RWires<'a, T>) -> Self {
+        RStream::wires(wires)
+    }
+}
+
 impl<'a, T: 'a> From<Rc<RStream<'a, T>>>  for RStream<'a, T> {
     fn from(l: Rc<RStream<'a, T>>) -> Self {
         RStream::new(move |t| l.push(t))
