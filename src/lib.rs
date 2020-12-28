@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 use std::ops::Deref;
 pub use crate::values::*;
+use std::sync::mpsc::{Sender, SendError};
 
 pub mod wires;
 pub mod values;
@@ -40,6 +41,12 @@ impl<'a, T: Copy + 'a> RWire<'a, T> {
     pub fn call_stream(stream: RStream<'a, T>) -> Self {
         Self::new(move |t| stream.push(*t))
     }
+
+    pub fn send(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> RWire<'a, T> {
+        RWire::new(move |t| {
+            result.distribute(&sender.send(*t));
+        })
+    }
 }
 
 impl<'a, T: Clone + 'a> RWire<'a, T> {
@@ -54,6 +61,12 @@ impl<'a, T: Clone + 'a> RWire<'a, T> {
 
     pub fn call_stream_clone(stream: RStream<'a, T>) -> Self {
         Self::new(move |t| stream.push(t.clone()))
+    }
+
+    pub fn send_clone(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> RWire<'a, T> {
+        RWire::new(move |t: &T| {
+            result.distribute(&sender.send(t.clone()));
+        })
     }
 }
 
