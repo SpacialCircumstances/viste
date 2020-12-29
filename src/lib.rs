@@ -155,6 +155,18 @@ impl<'a, T: 'a> RStream<'a, T> {
             result.push(sender.send(t));
         })
     }
+
+    pub fn mapped<F: 'a, M: Fn(F) -> T + 'a>(self, mapper: M) -> RStream<'a, F> {
+        streams::combinators::map(mapper, self)
+    }
+
+    pub fn filtered<F: Fn(&T) -> bool + 'a>(self, filter: F) -> Self {
+        streams::combinators::filter(filter, self)
+    }
+
+    pub fn filter_mapped<U: 'a, F: Fn(U) -> Option<T> + 'a>(self, fm: F) -> RStream<'a, U> {
+        streams::combinators::filter_map(fm, self)
+    }
 }
 
 impl<'a, T: 'a> From<RWires<'a, T>> for RStream<'a, T> {
