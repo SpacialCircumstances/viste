@@ -3,6 +3,7 @@ use std::cell::{Ref, RefCell};
 use std::ops::Deref;
 pub use crate::values::*;
 use std::sync::mpsc::{Sender, SendError};
+use std::hash::Hash;
 
 pub mod wires;
 pub mod values;
@@ -166,6 +167,18 @@ impl<'a, T: 'a> RStream<'a, T> {
 
     pub fn filter_mapped<U: 'a, F: Fn(U) -> Option<T> + 'a>(self, fm: F) -> RStream<'a, U> {
         streams::combinators::filter_map(fm, self)
+    }
+
+    pub fn cached(self) -> Self where T: Copy + Eq {
+        streams::combinators::cache(self)
+    }
+
+    pub fn cached_clone(self) -> Self where T: Clone + Eq {
+        streams::combinators::cache_clone(self)
+    }
+
+    pub fn cached_hash(self) -> Self where T: Hash {
+        streams::combinators::cache_hash(self)
     }
 }
 
