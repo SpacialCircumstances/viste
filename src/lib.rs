@@ -120,6 +120,16 @@ impl<'a, T> RWires<'a, T> {
     pub fn distribute(&self, data: &T) {
         self.0.iter().for_each(|l| l.run(data));
     }
+
+    pub fn add<I: Into<RWire<'a, T>>>(&mut self, wire: I) {
+        self.0.push(wire.into())
+    }
+}
+
+impl<'a, T> Default for RWires<'a, T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a, T> From<RWire<'a, T>> for RWires<'a, T> {
