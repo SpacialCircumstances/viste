@@ -70,7 +70,7 @@ pub fn cache_hash<'a, T: Hash + 'a, I: Into<RWires<'a, T>>>(wires: I) -> RWire<'
     })
 }
 
-pub fn reduce<'a, T: 'a, S: 'a, F: Fn(&T, &mut S) -> () + 'a, I: Into<RWires<'a, S>>>(
+pub fn reduce<'a, T: 'a, S: 'a, F: Fn(&T, &mut S) + 'a, I: Into<RWires<'a, S>>>(
     reducer: F,
     initial: S,
     out: I,

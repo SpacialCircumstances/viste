@@ -9,10 +9,10 @@ pub mod streams;
 pub mod values;
 pub mod wires;
 
-pub struct RWire<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
+pub struct RWire<'a, T>(Box<dyn Fn(&T) + 'a>);
 
 impl<'a, T: 'a> RWire<'a, T> {
-    pub fn new<F: Fn(&T) -> () + 'a>(fun: F) -> Self {
+    pub fn new<F: Fn(&T) + 'a>(fun: F) -> Self {
         Self(Box::new(fun))
     }
 
@@ -40,11 +40,7 @@ impl<'a, T: 'a> RWire<'a, T> {
         wires::combinators::filter_map(fm, self)
     }
 
-    pub fn reduced<U: 'a, R: Fn(&U, &mut T) -> () + 'a>(
-        self,
-        reducer: R,
-        initial: T,
-    ) -> RWire<'a, U> {
+    pub fn reduced<U: 'a, R: Fn(&U, &mut T) + 'a>(self, reducer: R, initial: T) -> RWire<'a, U> {
         wires::combinators::reduce(reducer, initial, self)
     }
 
@@ -146,10 +142,10 @@ pub trait RValue<T>: Clone {
     fn data(&self) -> RefWrapper<T>;
 }
 
-pub struct RStream<'a, T: 'a>(Box<dyn Fn(T) -> () + 'a>);
+pub struct RStream<'a, T: 'a>(Box<dyn Fn(T) + 'a>);
 
 impl<'a, T: 'a> RStream<'a, T> {
-    pub fn new<F: Fn(T) -> () + 'a>(f: F) -> Self {
+    pub fn new<F: Fn(T) + 'a>(f: F) -> Self {
         Self(Box::new(f))
     }
 
@@ -158,7 +154,7 @@ impl<'a, T: 'a> RStream<'a, T> {
     }
 
     pub fn dropping() -> Self {
-        Self::new(|x| drop(x))
+        Self::new(|_x| {})
     }
 
     pub fn wires(wires: RWires<'a, T>) -> Self {
