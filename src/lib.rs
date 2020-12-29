@@ -52,26 +52,7 @@ impl<'a, T: 'a> RWire<'a, T> {
         wires::combinators::cache_hash(self.into())
     }
 
-    pub fn store(default: T) -> (Self, OwnedRValue<T>) where T: Copy {
-        let store = Rc::new(RefCell::new(default));
-        let c = store.clone();
-        let pipe = RWire::new(move |t| {
-            c.replace(*t);
-        });
-        (pipe, OwnedRValue::new(store))
-    }
-
-    pub fn call_stream(stream: RStream<'a, T>) -> Self where T: Copy {
-        Self::new(move |t| stream.push(*t))
-    }
-
-    pub fn send(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> Self where T: Copy {
-        RWire::new(move |t| {
-            result.distribute(&sender.send(*t));
-        })
-    }
-
-    pub fn store_clone(default: T) -> (Self, OwnedRValue<T>) where T: Clone {
+    pub fn store(default: T) -> (Self, OwnedRValue<T>) where T: Clone {
         let store = Rc::new(RefCell::new(default));
         let c = store.clone();
         let pipe = RWire::new(move |t: &T| {
@@ -80,11 +61,11 @@ impl<'a, T: 'a> RWire<'a, T> {
         (pipe, OwnedRValue::new(store))
     }
 
-    pub fn call_stream_clone(stream: RStream<'a, T>) -> Self where T: Clone {
+    pub fn call_stream(stream: RStream<'a, T>) -> Self where T: Clone {
         Self::new(move |t| stream.push(t.clone()))
     }
 
-    pub fn send_clone(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> Self where T: Clone {
+    pub fn send(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> Self where T: Clone {
         RWire::new(move |t: &T| {
             result.distribute(&sender.send(t.clone()));
         })
