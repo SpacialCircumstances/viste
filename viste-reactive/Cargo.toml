@@ -1,0 +1,5 @@
+[package]
+name = "viste-reactive"
+version = "0.1.0"
+authors = ["SpacialCircumstances <SpacialCircumstances@users.noreply.github.com>"]
+edition = "2018"
