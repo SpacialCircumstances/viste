@@ -4,47 +4,58 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::ops::DerefMut;
 
-pub fn map<'a, F: 'a, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, pipes: RWires<'a, T>) -> RWire<'a, F> {
+pub fn map<'a, F: 'a, T: 'a, M: Fn(&F) -> T + 'a, I: Into<RWires<'a, T>>>(
+    mapper: M,
+    wires: I,
+) -> RWire<'a, F> {
+    let wires = wires.into();
     RWire::new(move |f| {
         let t = mapper(f);
-        pipes.distribute(&t)
+        wires.distribute(&t)
     })
 }
 
-pub fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(filter: F, pipes: RWires<'a, T>) -> RWire<'a, T> {
+pub fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a, I: Into<RWires<'a, T>>>(
+    filter: F,
+    wires: I,
+) -> RWire<'a, T> {
+    let wires = wires.into();
     RWire::new(move |t| {
         if filter(t) {
-            pipes.distribute(t);
+            wires.distribute(t);
         }
     })
 }
 
-pub fn cache<'a, T: Copy + Eq + 'a>(pipes: RWires<'a, T>) -> RWire<'a, T> {
+pub fn cache<'a, T: Copy + Eq + 'a, I: Into<RWires<'a, T>>>(wires: I) -> RWire<'a, T> {
     let cached: Cell<Option<T>> = Cell::new(None);
+    let wires = wires.into();
     RWire::new(move |t| match &cached.get() {
         Some(old) if old == t => (),
         _ => {
             cached.replace(Some(*t));
-            pipes.distribute(t);
+            wires.distribute(t);
         }
     })
 }
 
-pub fn cache_clone<'a, T: Clone + Eq + 'a>(pipes: RWires<'a, T>) -> RWire<'a, T> {
+pub fn cache_clone<'a, T: Clone + Eq + 'a, I: Into<RWires<'a, T>>>(wires: I) -> RWire<'a, T> {
     let cached: RefCell<Option<T>> = RefCell::new(None);
+    let wires = wires.into();
     RWire::new(move |t| {
         match cached.borrow_mut().deref_mut() {
             Some(old) if old == t => (),
             x => {
                 *x = Some(t.clone());
-                pipes.distribute(t);
+                wires.distribute(t);
             }
         };
     })
 }
 
-pub fn cache_hash<'a, T: Hash + 'a>(pipes: RWires<'a, T>) -> RWire<'a, T> {
+pub fn cache_hash<'a, T: Hash + 'a, I: Into<RWires<'a, T>>>(wires: I) -> RWire<'a, T> {
     let cached: Cell<Option<u64>> = Cell::new(None);
+    let wires = wires.into();
     RWire::new(move |t: &T| {
         let mut hasher = DefaultHasher::new();
         t.hash(&mut hasher);
@@ -53,17 +64,18 @@ pub fn cache_hash<'a, T: Hash + 'a>(pipes: RWires<'a, T>) -> RWire<'a, T> {
             Some(old_hash) if old_hash == new_hash => (),
             _ => {
                 cached.set(Some(new_hash));
-                pipes.distribute(t);
+                wires.distribute(t);
             }
         }
     })
 }
 
-pub fn reduce<'a, T: 'a, S: 'a, F: Fn(&T, &mut S) -> () + 'a>(
+pub fn reduce<'a, T: 'a, S: 'a, F: Fn(&T, &mut S) -> () + 'a, I: Into<RWires<'a, S>>>(
     reducer: F,
     initial: S,
-    out: RWires<'a, S>,
+    out: I,
 ) -> RWire<'a, T> {
+    let out = out.into();
     let state = RefCell::new(initial);
     RWire::new(move |t: &T| {
         let mut s = state.borrow_mut();
@@ -73,27 +85,24 @@ pub fn reduce<'a, T: 'a, S: 'a, F: Fn(&T, &mut S) -> () + 'a>(
     })
 }
 
-pub fn copied<'a, T: Copy + 'a>(pipes: RWires<'a, T>) -> RWire<'a, &T> {
-    RWire::new(move |t| {
-        pipes.distribute(*t);
-    })
-}
-
-pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(&T) -> Option<U> + 'a>(
+pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(&T) -> Option<U> + 'a, I: Into<RWires<'a, U>>>(
     f: F,
-    wires: RWires<'a, U>,
+    wires: I,
 ) -> RWire<'a, T> {
+    let wires = wires.into();
     RWire::new(move |t| match f(t) {
         None => (),
         Some(u) => wires.distribute(&u),
     })
 }
 
-pub fn cond<'a, T: 'a, F: Fn(&T) -> bool + 'a>(
+pub fn cond<'a, T: 'a, F: Fn(&T) -> bool + 'a, I1: Into<RWires<'a, T>>, I2: Into<RWires<'a, T>>>(
     cond: F,
-    if_true: RWires<'a, T>,
-    if_false: RWires<'a, T>,
+    if_true: I1,
+    if_false: I2,
 ) -> RWire<'a, T> {
+    let if_true = if_true.into();
+    let if_false = if_false.into();
     RWire::new(move |t| match cond(t) {
         true => if_true.distribute(t),
         false => if_false.distribute(t),

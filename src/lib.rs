@@ -29,15 +29,15 @@ impl<'a, T: 'a> RWire<'a, T> {
     }
 
     pub fn mapped<F: 'a, M: Fn(&F) -> T + 'a>(self, mapper: M) -> RWire<'a, F> {
-        wires::combinators::map(mapper, self.into())
+        wires::combinators::map(mapper, self)
     }
 
     pub fn filtered<F: Fn(&T) -> bool + 'a>(self, filter: F) -> Self {
-        wires::combinators::filter(filter, self.into())
+        wires::combinators::filter(filter, self)
     }
 
     pub fn filter_mapped<U: 'a, F: Fn(&U) -> Option<T> + 'a>(self, fm: F) -> RWire<'a, U> {
-        wires::combinators::filter_map(fm, self.into())
+        wires::combinators::filter_map(fm, self)
     }
 
     pub fn reduced<U: 'a, R: Fn(&U, &mut T) -> () + 'a>(
@@ -45,28 +45,28 @@ impl<'a, T: 'a> RWire<'a, T> {
         reducer: R,
         initial: T,
     ) -> RWire<'a, U> {
-        wires::combinators::reduce(reducer, initial, self.into())
+        wires::combinators::reduce(reducer, initial, self)
     }
 
     pub fn cached(self) -> Self
     where
         T: Copy + Eq,
     {
-        wires::combinators::cache(self.into())
+        wires::combinators::cache(self)
     }
 
     pub fn cached_clone(self) -> Self
     where
         T: Clone + Eq,
     {
-        wires::combinators::cache_clone(self.into())
+        wires::combinators::cache_clone(self)
     }
 
     pub fn cached_hash(self) -> Self
     where
         T: Hash,
     {
-        wires::combinators::cache_hash(self.into())
+        wires::combinators::cache_hash(self)
     }
 
     pub fn store(default: T) -> (Self, OwnedRValue<T>)

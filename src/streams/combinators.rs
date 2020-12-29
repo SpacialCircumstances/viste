@@ -4,17 +4,19 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::ops::DerefMut;
 
-pub fn map<'a, T: 'a, U: 'a, M: Fn(T) -> U + 'a>(
+pub fn map<'a, T: 'a, U: 'a, M: Fn(T) -> U + 'a, I: Into<RStream<'a, U>>>(
     mapper: M,
-    next: RStream<'a, U>,
+    next: I,
 ) -> RStream<'a, T> {
+    let next = next.into();
     RStream::new(move |t| next.push(mapper(t)))
 }
 
-pub fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(
+pub fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a, I: Into<RStream<'a, T>>>(
     filter: F,
-    next: RStream<'a, T>,
+    next: I,
 ) -> RStream<'a, T> {
+    let next = next.into();
     RStream::new(move |t| {
         if filter(&t) {
             next.push(t);
@@ -22,8 +24,9 @@ pub fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a>(
     })
 }
 
-pub fn cache<'a, T: Copy + Eq + 'a>(next: RStream<'a, T>) -> RStream<'a, T> {
+pub fn cache<'a, T: Copy + Eq + 'a, I: Into<RStream<'a, T>>>(next: I) -> RStream<'a, T> {
     let cached: Cell<Option<T>> = Cell::new(None);
+    let next = next.into();
     RStream::new(move |t| match &cached.get() {
         Some(old) if old == &t => (),
         _ => {
@@ -33,8 +36,9 @@ pub fn cache<'a, T: Copy + Eq + 'a>(next: RStream<'a, T>) -> RStream<'a, T> {
     })
 }
 
-pub fn cache_clone<'a, T: Clone + Eq + 'a>(next: RStream<'a, T>) -> RStream<'a, T> {
+pub fn cache_clone<'a, T: Clone + Eq + 'a, I: Into<RStream<'a, T>>>(next: I) -> RStream<'a, T> {
     let cached: RefCell<Option<T>> = RefCell::new(None);
+    let next = next.into();
     RStream::new(move |t: T| {
         match cached.borrow_mut().deref_mut() {
             Some(old) if old == &t => (),
@@ -46,8 +50,9 @@ pub fn cache_clone<'a, T: Clone + Eq + 'a>(next: RStream<'a, T>) -> RStream<'a, 
     })
 }
 
-pub fn cache_hash<'a, T: Hash + 'a>(next: RStream<'a, T>) -> RStream<'a, T> {
+pub fn cache_hash<'a, T: Hash + 'a, I: Into<RStream<'a, T>>>(next: I) -> RStream<'a, T> {
     let cached: Cell<Option<u64>> = Cell::new(None);
+    let next = next.into();
     RStream::new(move |t: T| {
         let mut hasher = DefaultHasher::new();
         t.hash(&mut hasher);
@@ -62,21 +67,30 @@ pub fn cache_hash<'a, T: Hash + 'a>(next: RStream<'a, T>) -> RStream<'a, T> {
     })
 }
 
-pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(T) -> Option<U> + 'a>(
+pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(T) -> Option<U> + 'a, I: Into<RStream<'a, U>>>(
     f: F,
-    next: RStream<'a, U>,
+    next: I,
 ) -> RStream<'a, T> {
+    let next = next.into();
     RStream::new(move |t| match f(t) {
         None => (),
         Some(u) => next.push(u),
     })
 }
 
-pub fn cond<'a, T: 'a, F: Fn(&T) -> bool + 'a>(
+pub fn cond<
+    'a,
+    T: 'a,
+    F: Fn(&T) -> bool + 'a,
+    I1: Into<RStream<'a, T>>,
+    I2: Into<RStream<'a, T>>,
+>(
     cond: F,
-    if_true: RStream<'a, T>,
-    if_false: RStream<'a, T>,
+    if_true: I1,
+    if_false: I2,
 ) -> RStream<'a, T> {
+    let if_true = if_true.into();
+    let if_false = if_false.into();
     RStream::new(move |t| match cond(&t) {
         true => if_true.push(t),
         false => if_false.push(t),
