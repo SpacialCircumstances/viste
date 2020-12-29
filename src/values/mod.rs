@@ -1,6 +1,6 @@
 use crate::{RValue, RefWrapper};
+use std::cell::{Ref, RefCell};
 use std::marker::PhantomData;
-use std::cell::{RefCell, Ref};
 use std::rc::Rc;
 
 pub trait RValueExt<T>: RValue<T> {
@@ -9,9 +9,7 @@ pub trait RValueExt<T>: RValue<T> {
     }
 }
 
-impl<T, R: RValue<T>> RValueExt<T> for R {
-
-}
+impl<T, R: RValue<T>> RValueExt<T> for R {}
 
 pub struct OwnedRValue<T>(Rc<RefCell<T>>);
 

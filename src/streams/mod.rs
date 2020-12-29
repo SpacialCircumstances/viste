@@ -2,8 +2,10 @@ pub mod combinators;
 
 #[cfg(test)]
 mod tests {
+    use crate::streams::combinators::{
+        cache, cache_clone, cache_hash, cond, filter, filter_map, map,
+    };
     use crate::*;
-    use crate::streams::combinators::{map, filter, cache, cache_hash, cache_clone, cond, filter_map};
     use std::cell::Cell;
     use std::str::FromStr;
 
@@ -46,8 +48,6 @@ mod tests {
         let counter = Cell::new(0);
         let stream = RStream::new(|_x| {
             counter.set(counter.get() + 1);
-
-
         });
         let cached = cache(stream);
         cached.push(&2);

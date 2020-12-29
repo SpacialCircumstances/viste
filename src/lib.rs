@@ -1,13 +1,13 @@
-use std::rc::Rc;
-use std::cell::{Ref, RefCell};
-use std::ops::Deref;
 pub use crate::values::*;
-use std::sync::mpsc::{Sender, SendError};
+use std::cell::{Ref, RefCell};
 use std::hash::Hash;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::mpsc::{SendError, Sender};
 
-pub mod wires;
-pub mod values;
 pub mod streams;
+pub mod values;
+pub mod wires;
 
 pub struct RWire<'a, T>(Box<dyn Fn(&T) -> () + 'a>);
 
@@ -40,23 +40,39 @@ impl<'a, T: 'a> RWire<'a, T> {
         wires::combinators::filter_map(fm, self.into())
     }
 
-    pub fn reduced<U: 'a, R: Fn(&U, &mut T) -> () + 'a>(self, reducer: R, initial: T) -> RWire<'a, U> {
+    pub fn reduced<U: 'a, R: Fn(&U, &mut T) -> () + 'a>(
+        self,
+        reducer: R,
+        initial: T,
+    ) -> RWire<'a, U> {
         wires::combinators::reduce(reducer, initial, self.into())
     }
 
-    pub fn cached(self) -> Self where T: Copy + Eq {
+    pub fn cached(self) -> Self
+    where
+        T: Copy + Eq,
+    {
         wires::combinators::cache(self.into())
     }
 
-    pub fn cached_clone(self) -> Self where T: Clone + Eq {
+    pub fn cached_clone(self) -> Self
+    where
+        T: Clone + Eq,
+    {
         wires::combinators::cache_clone(self.into())
     }
 
-    pub fn cached_hash(self) -> Self where T: Hash {
+    pub fn cached_hash(self) -> Self
+    where
+        T: Hash,
+    {
         wires::combinators::cache_hash(self.into())
     }
 
-    pub fn store(default: T) -> (Self, OwnedRValue<T>) where T: Clone {
+    pub fn store(default: T) -> (Self, OwnedRValue<T>)
+    where
+        T: Clone,
+    {
         let store = Rc::new(RefCell::new(default));
         let c = store.clone();
         let pipe = RWire::new(move |t: &T| {
@@ -65,18 +81,24 @@ impl<'a, T: 'a> RWire<'a, T> {
         (pipe, OwnedRValue::new(store))
     }
 
-    pub fn call_stream(stream: RStream<'a, T>) -> Self where T: Clone {
+    pub fn call_stream(stream: RStream<'a, T>) -> Self
+    where
+        T: Clone,
+    {
         Self::new(move |t| stream.push(t.clone()))
     }
 
-    pub fn send(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> Self where T: Clone {
+    pub fn send(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> Self
+    where
+        T: Clone,
+    {
         RWire::new(move |t: &T| {
             result.distribute(&sender.send(t.clone()));
         })
     }
 }
 
-impl<'a, T: 'a> From<Rc<RWire<'a, T>>>  for RWire<'a, T> {
+impl<'a, T: 'a> From<Rc<RWire<'a, T>>> for RWire<'a, T> {
     fn from(l: Rc<RWire<'a, T>>) -> Self {
         RWire::new(move |t| l.run(t))
     }
@@ -96,7 +118,7 @@ impl<'a, T> RWires<'a, T> {
     }
 
     pub fn single(pipe: RWire<'a, T>) -> Self {
-        RWires(vec![ pipe ])
+        RWires(vec![pipe])
     }
 
     pub fn distribute(&self, data: &T) {
@@ -174,15 +196,24 @@ impl<'a, T: 'a> RStream<'a, T> {
         streams::combinators::filter_map(fm, self)
     }
 
-    pub fn cached(self) -> Self where T: Copy + Eq {
+    pub fn cached(self) -> Self
+    where
+        T: Copy + Eq,
+    {
         streams::combinators::cache(self)
     }
 
-    pub fn cached_clone(self) -> Self where T: Clone + Eq {
+    pub fn cached_clone(self) -> Self
+    where
+        T: Clone + Eq,
+    {
         streams::combinators::cache_clone(self)
     }
 
-    pub fn cached_hash(self) -> Self where T: Hash {
+    pub fn cached_hash(self) -> Self
+    where
+        T: Hash,
+    {
         streams::combinators::cache_hash(self)
     }
 }
@@ -193,7 +224,7 @@ impl<'a, T: 'a> From<RWires<'a, T>> for RStream<'a, T> {
     }
 }
 
-impl<'a, T: 'a> From<Rc<RStream<'a, T>>>  for RStream<'a, T> {
+impl<'a, T: 'a> From<Rc<RStream<'a, T>>> for RStream<'a, T> {
     fn from(l: Rc<RStream<'a, T>>) -> Self {
         RStream::new(move |t| l.push(t))
     }

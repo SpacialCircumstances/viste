@@ -2,8 +2,10 @@ pub mod combinators;
 
 #[cfg(test)]
 mod tests {
+    use crate::wires::combinators::{
+        cache, cache_clone, cache_hash, cond, filter, filter_map, map, reduce,
+    };
     use crate::*;
-    use crate::wires::combinators::{map, filter, cache, cache_hash, cache_clone, cond, filter_map, reduce};
     use std::cell::Cell;
     use std::str::FromStr;
 
@@ -46,8 +48,6 @@ mod tests {
         let counter = Cell::new(0);
         let wire = RWire::new(|_x| {
             counter.set(counter.get() + 1);
-
-
         });
         let cached = cache(wire.into());
         cached.run(&2);
