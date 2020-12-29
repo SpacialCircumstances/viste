@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use crate::*;
 
-pub fn map<'a, F, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, pipes: RWires<'a, T>) -> RWire<'a, F> {
+pub fn map<'a, F: 'a, T: 'a, M: Fn(&F) -> T + 'a>(mapper: M, pipes: RWires<'a, T>) -> RWire<'a, F> {
     RWire::new(move |f| {
         let t = mapper(f);
         pipes.distribute(&t)
