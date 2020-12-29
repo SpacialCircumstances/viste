@@ -85,3 +85,12 @@ pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(&T) -> Option<U> + 'a>(f: F, wires: RW
         }
     })
 }
+
+pub fn cond<'a, T: 'a, F: Fn(&T) -> bool + 'a>(cond: F, if_true: RWires<'a, T>, if_false: RWires<'a, T>) -> RWire<'a, T> {
+    RWire::new(move |t| {
+        match cond(t) {
+            true => if_true.distribute(t),
+            false => if_false.distribute(t)
+        }
+    })
+}

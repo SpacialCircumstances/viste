@@ -66,3 +66,12 @@ pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(T) -> Option<U> + 'a>(f: F, next: RStr
         }
     })
 }
+
+pub fn cond<'a, T: 'a, F: Fn(&T) -> bool + 'a>(cond: F, if_true: RStream<'a, T>, if_false: RStream<'a, T>) -> RStream<'a, T> {
+    RStream::new(move |t| {
+        match cond(&t) {
+            true => if_true.push(t),
+            false => if_false.push(t)
+        }
+    })
+}
