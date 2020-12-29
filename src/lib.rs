@@ -40,6 +40,10 @@ impl<'a, T: 'a> RWire<'a, T> {
         wires::combinators::filter_map(fm, self.into())
     }
 
+    pub fn reduced<U: 'a, R: Fn(&U, &mut T) -> () + 'a>(self, reducer: R, initial: T) -> RWire<'a, U> {
+        wires::combinators::reduce(reducer, initial, self.into())
+    }
+
     pub fn cached(self) -> Self where T: Copy + Eq {
         wires::combinators::cache(self.into())
     }
