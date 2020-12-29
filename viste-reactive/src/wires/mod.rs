@@ -12,7 +12,7 @@ mod tests {
     #[test]
     fn test_map() {
         let (wire, res) = RWire::store(None);
-        let mapped = map(|x: &i32| Some(*x + 1), wire.into());
+        let mapped = map(|x: &i32| Some(*x + 1), wire);
         assert!(res.data().is_none());
         mapped.run(&1);
         assert_eq!(*res.data(), Some(2));
@@ -23,7 +23,7 @@ mod tests {
     #[test]
     fn test_filter() {
         let (wire, res) = RWire::store(None);
-        let filtered = filter(|x| x % 2 == 0, map(|n| Some(*n), wire.into()).into());
+        let filtered = filter(|x| x % 2 == 0, map(|n| Some(*n), wire));
         assert!(res.data().is_none());
         filtered.run(&2);
         assert_eq!(*res.data(), Some(2));
@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn test_filter_map() {
         let (wire, res) = RWire::store(0);
-        let f: RWire<String> = filter_map(|x: &String| i32::from_str(x).ok(), wire.into());
+        let f: RWire<String> = filter_map(|x: &String| i32::from_str(x).ok(), wire);
         f.run(&String::from("19"));
         assert_eq!(*res.data(), 19);
         f.run(&String::from("TEST"));
@@ -49,7 +49,7 @@ mod tests {
         let wire = RWire::new(|_x| {
             counter.set(counter.get() + 1);
         });
-        let cached = cache(wire.into());
+        let cached = cache(wire);
         cached.run(&2);
         assert_eq!(counter.get(), 1);
         cached.run(&2);
@@ -66,7 +66,7 @@ mod tests {
         let wire = RWire::new(|_x| {
             counter.set(counter.get() + 1);
         });
-        let cached = cache_hash(wire.into());
+        let cached = cache_hash(wire);
         cached.run(&2);
         assert_eq!(counter.get(), 1);
         cached.run(&2);
@@ -83,7 +83,7 @@ mod tests {
         let wire = RWire::new(|_x| {
             counter.set(counter.get() + 1);
         });
-        let cached = cache_clone(wire.into());
+        let cached = cache_clone(wire);
         cached.run(&2);
         assert_eq!(counter.get(), 1);
         cached.run(&2);
@@ -98,7 +98,7 @@ mod tests {
     fn test_cond() {
         let (wire1, store1) = RWire::store(0);
         let (wire2, store2) = RWire::store(0);
-        let cw = cond(|x| x % 2 == 0, wire1.into(), wire2.into());
+        let cw = cond(|x| x % 2 == 0, wire1, wire2);
         cw.run(&1);
         assert_eq!(*store2.data(), 1);
         cw.run(&2);
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_reduce() {
         let (wire, store) = RWire::store(0);
-        let incr = reduce(|x, s| *s = *s + x, 0, wire.into());
+        let incr = reduce(|x, s| *s = *s + x, 0, wire);
         incr.run(&1);
         assert_eq!(*store.data(), 1);
         incr.run(&1);
