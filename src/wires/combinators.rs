@@ -76,3 +76,12 @@ pub fn copied<'a, T: Copy + 'a>(pipes: RWires<'a, T>) -> RWire<'a, &T> {
         pipes.distribute(*t);
     })
 }
+
+pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(&T) -> Option<U> + 'a>(f: F, wires: RWires<'a, U>) -> RWire<'a, T> {
+    RWire::new(move |t| {
+        match f(t) {
+            None => (),
+            Some(u) => wires.distribute(&u)
+        }
+    })
+}

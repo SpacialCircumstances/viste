@@ -57,3 +57,12 @@ pub fn cache_hash<'a, T: Hash + 'a>(next: RStream<'a, T>) -> RStream<'a, T> {
         }
     })
 }
+
+pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(T) -> Option<U> + 'a>(f: F, next: RStream<'a, U>) -> RStream<'a, T> {
+    RStream::new(move |t| {
+        match f(t) {
+            None => (),
+            Some(u) => next.push(u)
+        }
+    })
+}
