@@ -67,6 +67,24 @@ pub fn cache_hash<'a, T: Hash + 'a, I: Into<RStream<'a, T>>>(next: I) -> RStream
     })
 }
 
+pub fn cache_by<'a, T: 'a, X: Eq + Copy + 'a, C: Fn(&T) -> X + 'a, I: Into<RStream<'a, T>>>(
+    cache_func: C,
+    next: I,
+) -> RStream<'a, T> {
+    let next = next.into();
+    let cache = Cell::new(None);
+    RStream::new(move |t| {
+        let new_cache_value = cache_func(&t);
+        match &cache.get() {
+            Some(old) if *old == new_cache_value => (),
+            _ => {
+                cache.replace(Some(new_cache_value));
+                next.push(t);
+            }
+        }
+    })
+}
+
 pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(T) -> Option<U> + 'a, I: Into<RStream<'a, U>>>(
     f: F,
     next: I,

@@ -70,6 +70,24 @@ pub fn cache_hash<'a, T: Hash + 'a, I: Into<RWires<'a, T>>>(wires: I) -> RWire<'
     })
 }
 
+pub fn cache_by<'a, T: 'a, X: Eq + Copy + 'a, C: Fn(&T) -> X + 'a, I: Into<RWires<'a, T>>>(
+    cache_func: C,
+    wires: I,
+) -> RWire<'a, T> {
+    let wires = wires.into();
+    let cache = Cell::new(None);
+    RWire::new(move |t| {
+        let new_cache_value = cache_func(t);
+        match &cache.get() {
+            Some(old) if *old == new_cache_value => (),
+            _ => {
+                cache.replace(Some(new_cache_value));
+                wires.distribute(t);
+            }
+        }
+    })
+}
+
 pub fn reduce<'a, T: 'a, S: 'a, F: Fn(&T, &mut S) + 'a, I: Into<RWires<'a, S>>>(
     reducer: F,
     initial: S,
