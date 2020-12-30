@@ -51,20 +51,14 @@ pub fn cache_clone<'a, T: Clone + Eq + 'a, I: Into<RStream<'a, T>>>(next: I) -> 
 }
 
 pub fn cache_hash<'a, T: Hash + 'a, I: Into<RStream<'a, T>>>(next: I) -> RStream<'a, T> {
-    let cached: Cell<Option<u64>> = Cell::new(None);
-    let next = next.into();
-    RStream::new(move |t: T| {
-        let mut hasher = DefaultHasher::new();
-        t.hash(&mut hasher);
-        let new_hash = hasher.finish();
-        match cached.get() {
-            Some(old_hash) if old_hash == new_hash => (),
-            _ => {
-                cached.set(Some(new_hash));
-                next.push(t);
-            }
-        }
-    })
+    cache_by(
+        |t| {
+            let mut hasher = DefaultHasher::new();
+            t.hash(&mut hasher);
+            hasher.finish()
+        },
+        next,
+    )
 }
 
 pub fn cache_by<'a, T: 'a, X: Eq + Copy + 'a, C: Fn(&T) -> X + 'a, I: Into<RStream<'a, T>>>(
