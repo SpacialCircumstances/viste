@@ -138,13 +138,28 @@ impl<'a, T> From<RWire<'a, T>> for RWires<'a, T> {
     }
 }
 
-pub struct RefWrapper<'a, T>(Ref<'a, T>);
+pub enum RefWrapper<'a, T> {
+    Ref(Ref<'a, T>),
+    Direct(&'a T),
+}
+
+impl<'a, T> RefWrapper<'a, T> {
+    pub fn map<U, M: Fn(&T) -> &U>(self, mapper: M) -> RefWrapper<'a, U> {
+        match self {
+            RefWrapper::Ref(r) => RefWrapper::Ref(Ref::map(r, mapper)),
+            RefWrapper::Direct(r) => RefWrapper::Direct(mapper(r)),
+        }
+    }
+}
 
 impl<'a, T> Deref for RefWrapper<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.0.deref()
+        match self {
+            RefWrapper::Ref(r) => r.deref(),
+            RefWrapper::Direct(r) => r,
+        }
     }
 }
 

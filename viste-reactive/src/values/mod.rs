@@ -1,5 +1,5 @@
 use crate::{RValue, RefWrapper};
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -27,7 +27,7 @@ impl<T> Clone for OwnedRValue<T> {
 
 impl<T> RValue<T> for OwnedRValue<T> {
     fn data(&self) -> RefWrapper<T> {
-        RefWrapper(self.0.borrow())
+        RefWrapper::Ref(self.0.borrow())
     }
 }
 
@@ -41,6 +41,26 @@ impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: RValue<T>> Clone for SelectRValue<T, T2
 
 impl<T, T2, M: Fn(&T) -> &T2 + Clone, R: RValue<T>> RValue<T2> for SelectRValue<T, T2, M, R> {
     fn data(&self) -> RefWrapper<T2> {
-        RefWrapper(Ref::map(self.0.data().0, &self.1))
+        RefWrapper::map(self.0.data(), &self.1)
+    }
+}
+
+pub struct ConstantRValue<T>(Rc<T>);
+
+impl<T> ConstantRValue<T> {
+    pub fn new(value: T) -> Self {
+        Self(Rc::new(value))
+    }
+}
+
+impl<T> Clone for ConstantRValue<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T> RValue<T> for ConstantRValue<T> {
+    fn data(&self) -> RefWrapper<T> {
+        RefWrapper::Direct(std::borrow::Borrow::borrow(&self.0))
     }
 }
