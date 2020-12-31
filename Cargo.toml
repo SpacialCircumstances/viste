@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "viste-reactive",
-    "viste-cursive"
+    "viste_reactive",
+    "viste_cursive"
 ]
