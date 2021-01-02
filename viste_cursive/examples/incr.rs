@@ -1,5 +1,6 @@
 use cursive;
 use cursive::views::{Dialog, TextContent, TextView};
+use viste_cursive::text::setting;
 use viste_reactive::wires::combinators::reduce;
 use viste_reactive::RWire;
 
@@ -11,9 +12,8 @@ enum Msg {
 fn main() {
     let mut siv = cursive::default();
 
-    let counter_content = TextContent::new("");
-    let co = counter_content.clone();
-    let counter_str = RWire::new(move |s| co.set_content(s));
+    let counter_content = TextContent::new(" ");
+    let counter_str = setting(&counter_content);
     let counter = counter_str.mapped(|i| format!("{}", i));
     let dispatch = reduce(
         |msg, state| match msg {
