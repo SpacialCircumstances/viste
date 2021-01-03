@@ -28,6 +28,10 @@ impl<'a, T: 'a> RWire<'a, T> {
         Self::new(|_| {})
     }
 
+    pub fn from_borrowed(wires: &'a RWires<'a, T>) -> Self {
+        Self::new(move |t| wires.distribute(t))
+    }
+
     pub fn mapped<F: 'a, M: Fn(&F) -> T + 'a>(self, mapper: M) -> RWire<'a, F> {
         wires::combinators::map(mapper, self)
     }
@@ -91,6 +95,12 @@ impl<'a, T: 'a> RWire<'a, T> {
         RWire::new(move |t: &T| {
             result.distribute(&sender.send(t.clone()));
         })
+    }
+}
+
+impl<'a, T: 'a> From<&'a RWires<'a, T>> for RWire<'a, T> {
+    fn from(wires: &'a RWires<'a, T>) -> Self {
+        Self::from_borrowed(wires)
     }
 }
 
