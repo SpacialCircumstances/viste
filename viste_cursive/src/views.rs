@@ -3,5 +3,5 @@ use cursive::view::View;
 pub trait RView: View {
     type Bindings;
 
-    fn get_bindings(&self) -> &Self::Bindings;
+    fn bindings(&self) -> &Self::Bindings;
 }
