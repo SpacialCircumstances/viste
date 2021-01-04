@@ -110,6 +110,12 @@ impl<'a, T: 'a> From<Rc<RWire<'a, T>>> for RWire<'a, T> {
     }
 }
 
+impl<'a, T: 'a> From<Rc<RWires<'a, T>>> for RWire<'a, T> {
+    fn from(l: Rc<RWires<'a, T>>) -> Self {
+        RWire::new(move |t| l.distribute(t))
+    }
+}
+
 impl<'a, T: 'a> From<RWires<'a, T>> for RWire<'a, T> {
     fn from(l: RWires<'a, T>) -> Self {
         RWire::new(move |t| l.distribute(t))
