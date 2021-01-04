@@ -2,7 +2,8 @@ use crate::text::setting;
 use cursive::view::{View, ViewWrapper};
 use cursive::views::{TextContent, TextView};
 use cursive::wrap_impl;
-use viste_reactive::RWire;
+use std::rc::Rc;
+use viste_reactive::RWires;
 
 pub trait RView: View {
     type Bindings;
@@ -11,7 +12,7 @@ pub trait RView: View {
 }
 
 pub struct TextBindings {
-    pub content: RWire<'static, String>,
+    pub content: Rc<RWires<'static, String>>,
 }
 
 pub struct RTextView {
@@ -23,7 +24,9 @@ impl RTextView {
     pub fn new() -> Self {
         let tcontent = TextContent::new("");
         let content = setting(tcontent.clone());
-        let bindings = TextBindings { content };
+        let bindings = TextBindings {
+            content: Rc::new(content.into()),
+        };
         Self {
             view: TextView::new_with_content(tcontent),
             bindings,
