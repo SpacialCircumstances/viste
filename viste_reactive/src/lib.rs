@@ -125,7 +125,7 @@ impl<'a, T: 'a> From<RWires<'a, T>> for RWire<'a, T> {
 
 pub struct RWires<'a, T>(Vec<RWire<'a, T>>);
 
-impl<'a, T> RWires<'a, T> {
+impl<'a, T: 'a> RWires<'a, T> {
     pub fn new() -> Self {
         Self(Vec::with_capacity(1))
     }
@@ -141,15 +141,81 @@ impl<'a, T> RWires<'a, T> {
     pub fn add<I: Into<RWire<'a, T>>>(&mut self, wire: I) {
         self.0.push(wire.into())
     }
+
+    pub fn mapped<F: 'a, M: Fn(&F) -> T + 'a>(self, mapper: M) -> RWire<'a, F> {
+        wires::combinators::map(mapper, self)
+    }
+
+    pub fn filtered<F: Fn(&T) -> bool + 'a>(self, filter: F) -> Self {
+        wires::combinators::filter(filter, self).into()
+    }
+
+    pub fn filter_mapped<U: 'a, F: Fn(&U) -> Option<T> + 'a>(self, fm: F) -> RWire<'a, U> {
+        wires::combinators::filter_map(fm, self)
+    }
+
+    pub fn reduced<U: 'a, R: Fn(&U, &mut T) + 'a>(self, reducer: R, initial: T) -> RWire<'a, U> {
+        wires::combinators::reduce(reducer, initial, self)
+    }
+
+    pub fn cached(self) -> Self
+    where
+        T: Copy + Eq,
+    {
+        wires::combinators::cache(self).into()
+    }
+
+    pub fn cached_clone(self) -> Self
+    where
+        T: Clone + Eq,
+    {
+        wires::combinators::cache_clone(self).into()
+    }
+
+    pub fn cached_hash(self) -> Self
+    where
+        T: Hash,
+    {
+        wires::combinators::cache_hash(self).into()
+    }
+
+    pub fn store(default: T) -> (Self, OwnedRValue<T>)
+    where
+        T: Clone,
+    {
+        let store = Rc::new(RefCell::new(default));
+        let c = store.clone();
+        let pipe = RWire::new(move |t: &T| {
+            c.replace(t.clone());
+        });
+        (pipe.into(), OwnedRValue::new(store))
+    }
+
+    pub fn call_stream(stream: RStream<'a, T>) -> Self
+    where
+        T: Clone,
+    {
+        Self::single(RWire::new(move |t: &T| stream.push(t.clone())))
+    }
+
+    pub fn send(sender: Sender<T>, result: RWires<'a, Result<(), SendError<T>>>) -> Self
+    where
+        T: Clone,
+    {
+        RWire::new(move |t: &T| {
+            result.distribute(&sender.send(t.clone()));
+        })
+        .into()
+    }
 }
 
-impl<'a, T> Default for RWires<'a, T> {
+impl<'a, T: 'a> Default for RWires<'a, T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a, T> From<RWire<'a, T>> for RWires<'a, T> {
+impl<'a, T: 'a> From<RWire<'a, T>> for RWires<'a, T> {
     fn from(p: RWire<'a, T>) -> Self {
         RWires::single(p)
     }
