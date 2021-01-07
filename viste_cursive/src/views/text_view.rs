@@ -1,15 +1,10 @@
 use crate::text::setting;
-use cursive::view::{View, ViewWrapper};
+use crate::views::RView;
+use cursive::view::ViewWrapper;
 use cursive::views::{TextContent, TextView};
 use cursive::wrap_impl;
 use std::rc::Rc;
 use viste_reactive::RWires;
-
-pub trait RView: View {
-    type Bindings;
-
-    fn bindings(&self) -> &Self::Bindings;
-}
 
 pub struct TextBindings {
     pub content: Rc<RWires<'static, String>>,
