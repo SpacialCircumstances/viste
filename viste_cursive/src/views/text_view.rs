@@ -1,31 +1,28 @@
-use crate::text::setting;
-use crate::views::RView;
+use crate::text::{appending, setting};
 use cursive::view::ViewWrapper;
 use cursive::views::{TextContent, TextView};
 use cursive::wrap_impl;
 use std::rc::Rc;
-use viste_reactive::RWires;
-
-pub struct TextBindings {
-    pub content: Rc<RWires<'static, String>>,
-}
+use viste_reactive::{RWire, RWires};
 
 pub struct RTextView {
     view: TextView,
-    bindings: TextBindings,
 }
 
 impl RTextView {
     pub fn new() -> Self {
         let tcontent = TextContent::new("");
-        let content = setting(tcontent.clone());
-        let bindings = TextBindings {
-            content: Rc::new(content.into()),
-        };
         Self {
             view: TextView::new_with_content(tcontent),
-            bindings,
         }
+    }
+
+    pub fn set<'a>(&mut self) -> RWires<'a, String> {
+        setting(self.view.get_shared_content()).into()
+    }
+
+    pub fn append<'a>(&mut self) -> RWires<'a, String> {
+        appending(self.view.get_shared_content()).into()
     }
 }
 
@@ -37,12 +34,4 @@ impl Default for RTextView {
 
 impl ViewWrapper for RTextView {
     wrap_impl!(self.view: TextView);
-}
-
-impl RView for RTextView {
-    type Bindings = TextBindings;
-
-    fn bindings(&self) -> &Self::Bindings {
-        &self.bindings
-    }
 }
