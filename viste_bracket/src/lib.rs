@@ -30,6 +30,18 @@ impl<'a> TextComponent<'a> {
             text_stream,
         }
     }
+
+    pub fn x_wire(&self) -> &RWires<i32> {
+        &self.x_wire
+    }
+
+    pub fn y_wire(&self) -> &RWires<i32> {
+        &self.y_wire
+    }
+
+    pub fn text_stream(&self) -> &RStream<String> {
+        &self.text_stream
+    }
 }
 
 impl<'a> Component for TextComponent<'a> {
@@ -40,6 +52,12 @@ impl<'a> Component for TextComponent<'a> {
 
 pub struct ReactiveState {
     root: ComponentBox,
+}
+
+impl ReactiveState {
+    pub fn new(root: ComponentBox) -> Self {
+        Self { root }
+    }
 }
 
 impl GameState for ReactiveState {
