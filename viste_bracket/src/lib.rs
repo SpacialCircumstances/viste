@@ -1,10 +1,42 @@
-use bracket_lib::prelude::{BTerm, GameState};
+use bracket_lib::prelude::{BTerm, Console, GameState};
+use viste_reactive::{OwnedRValue, RStream, RValue, RWire, RWires};
 
 pub trait Component {
     fn draw(&mut self, ctx: &mut BTerm);
 }
 
 type ComponentBox = Box<dyn Component>;
+
+pub struct TextComponent<'a> {
+    x: OwnedRValue<i32>,
+    y: OwnedRValue<i32>,
+    x_wire: RWires<'a, i32>,
+    y_wire: RWires<'a, i32>,
+    text: OwnedRValue<String>,
+    text_stream: RStream<'a, String>,
+}
+
+impl<'a> TextComponent<'a> {
+    pub fn new(x: i32, y: i32, text: String) -> Self {
+        let (x_wire, x) = RWire::store(x);
+        let (y_wire, y) = RWire::store(y);
+        let (text_stream, text) = RStream::store(text);
+        Self {
+            x,
+            y,
+            text,
+            x_wire: x_wire.into(),
+            y_wire: y_wire.into(),
+            text_stream,
+        }
+    }
+}
+
+impl<'a> Component for TextComponent<'a> {
+    fn draw(&mut self, ctx: &mut BTerm) {
+        ctx.print(*self.x.data(), *self.y.data(), &*self.text.data());
+    }
+}
 
 pub struct ReactiveState {
     root: ComponentBox,
