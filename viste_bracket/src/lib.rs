@@ -1,11 +1,10 @@
 use bracket_lib::prelude::{BTerm, Console, GameState};
+use std::rc::Rc;
 use viste_reactive::{OwnedRValue, RStream, RValue, RWire, RWires};
 
 pub trait Component {
-    fn draw(&mut self, ctx: &mut BTerm);
+    fn draw(&self, ctx: &mut BTerm);
 }
-
-type ComponentBox = Box<dyn Component>;
 
 pub struct TextComponent<'a> {
     x: OwnedRValue<i32>,
@@ -45,17 +44,17 @@ impl<'a> TextComponent<'a> {
 }
 
 impl<'a> Component for TextComponent<'a> {
-    fn draw(&mut self, ctx: &mut BTerm) {
+    fn draw(&self, ctx: &mut BTerm) {
         ctx.print(*self.x.data(), *self.y.data(), &*self.text.data());
     }
 }
 
 pub struct ReactiveState {
-    root: ComponentBox,
+    root: Rc<dyn Component>,
 }
 
 impl ReactiveState {
-    pub fn new(root: ComponentBox) -> Self {
+    pub fn new(root: Rc<dyn Component>) -> Self {
         Self { root }
     }
 }
