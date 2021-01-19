@@ -2,5 +2,6 @@
 
 members = [
     "viste_reactive",
-    "viste_cursive"
+    "viste_cursive",
+    "viste_bracket"
 ]
