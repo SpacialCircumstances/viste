@@ -1,7 +1,7 @@
 use bracket_lib::prelude::*;
 use std::rc::Rc;
 use viste_bracket::{ReactiveState, TextComponent};
-use viste_reactive::{RWire, RWires};
+use viste_reactive::RStream;
 
 fn main() {
     let context = BTermBuilder::simple80x50()
@@ -10,10 +10,6 @@ fn main() {
 
     let text = Rc::new(TextComponent::new(0, 0, "Hello World!".into()));
 
-    let coords = RWires::new()
-        .with(RWire::from_borrowed(text.x_wire()))
-        .with(RWire::from_borrowed(text.y_wire()));
-
-    let state = ReactiveState::new(text.clone());
+    let state = ReactiveState::new(text.clone(), RStream::dropping());
     main_loop(context, state);
 }
