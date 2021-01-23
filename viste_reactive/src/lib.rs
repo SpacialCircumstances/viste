@@ -143,7 +143,7 @@ impl<'a, T: 'a> RWires<'a, T> {
     }
 
     pub fn with<I: Into<RWire<'a, T>>>(mut self, wire: I) -> Self {
-        (&mut self).0.push(wire.into());
+        self.0.push(wire.into());
         self
     }
 
