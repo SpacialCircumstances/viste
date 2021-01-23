@@ -142,6 +142,11 @@ impl<'a, T: 'a> RWires<'a, T> {
         self.0.push(wire.into())
     }
 
+    pub fn with<I: Into<RWire<'a, T>>>(mut self, wire: I) -> Self {
+        (&mut self).0.push(wire.into());
+        self
+    }
+
     pub fn mapped<F: 'a, M: Fn(&F) -> T + 'a>(self, mapper: M) -> RWire<'a, F> {
         wires::combinators::map(mapper, self)
     }
