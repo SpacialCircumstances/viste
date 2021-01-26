@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::mpsc::{SendError, Sender};
 
+pub mod events;
 pub mod lists;
 pub mod streams;
 pub mod values;
