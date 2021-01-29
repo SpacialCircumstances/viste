@@ -35,21 +35,16 @@ impl World {
             }
         }
     }
-}
 
-struct Node<'a, T> {
-    dirty: bool,
-    recompute: Box<dyn Fn() -> T + 'a>,
-    current_value: T,
-}
-
-impl<'a, T> Node<'a, T> {
-    pub fn new<F: Fn() -> T + 'a>(recompute: F) -> Self {
-        let initial = recompute();
-        Self {
-            dirty: false,
-            recompute: Box::new(recompute),
-            current_value: initial,
-        }
+    pub fn is_dirty(&self, node: NodeIndex) -> bool {
+        let wd = self.0.borrow();
+        wd.dependencies[node]
     }
+}
+
+pub struct Node<'a, T> {
+    index: NodeIndex,
+    world: World,
+    recompute: Box<dyn Fn() -> T + 'a>,
+    current_value: RefCell<T>,
 }
