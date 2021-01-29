@@ -110,6 +110,10 @@ impl<'a, T: 'a> Node<'a, T> {
         f(&*val)
     }
 
+    pub fn is_dirty(&self) -> bool {
+        self.0.world.is_dirty(self.0.index)
+    }
+
     pub fn map<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Node<'a, Z> {
         let initial = mapper(&*self.data().0);
         let this = self.clone();
