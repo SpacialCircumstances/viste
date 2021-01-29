@@ -59,6 +59,10 @@ impl World {
         };
         Node(Rc::new(data))
     }
+
+    pub fn constant<'a, T>(&self, value: T) -> Node<'a, T> {
+        self.create_node(move |_| ComputationResult::Unchanged, value)
+    }
 }
 
 impl Default for World {
