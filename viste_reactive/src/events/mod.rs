@@ -64,6 +64,14 @@ impl World {
         Node(Rc::new(data))
     }
 
+    pub fn add_dependency(&self, parent: NodeIndex, child: NodeIndex) {
+        self.0
+            .borrow_mut()
+            .dependencies
+            .add_edge(parent, child, ())
+            .expect("Dependency cycle");
+    }
+
     pub fn constant<'a, T>(&self, value: T) -> Node<'a, T> {
         self.create_node(move |_| ComputationResult::Unchanged, value)
     }
@@ -128,17 +136,23 @@ impl<'a, T: 'a> Node<'a, T> {
         self.0.world.is_dirty(self.0.index)
     }
 
+    pub fn add_depending(&self, child: NodeIndex) {
+        self.0.world.add_dependency(self.0.index, child);
+    }
+
     pub fn map<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Node<'a, Z> {
         let initial = mapper(&*self.data().0);
         let this = self.clone();
-        self.0.world.create_node(
+        let node = self.0.world.create_node(
             move |t| {
                 //We cannot rely on the mapper functions purity, so we can't pass the change-tracking.
                 *t = mapper(&*this.data().0);
                 ComputationResult::Changed
             },
             initial,
-        )
+        );
+        self.add_depending(node.0.index);
+        node
     }
 
     pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F, initial: T) -> Node<'a, T>
@@ -152,7 +166,7 @@ impl<'a, T: 'a> Node<'a, T> {
         } else {
             initial
         };
-        self.0.world.create_node(
+        let node = self.0.world.create_node(
             move |t| {
                 let (v, changed) = this.data();
                 if changed == ComputationResult::Changed && filter(&*v) {
@@ -163,6 +177,8 @@ impl<'a, T: 'a> Node<'a, T> {
                 }
             },
             initial,
-        )
+        );
+        self.add_depending(node.0.index);
+        node
     }
 }
