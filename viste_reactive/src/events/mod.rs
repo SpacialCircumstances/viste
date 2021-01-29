@@ -1,8 +1,7 @@
 use daggy::stable_dag::StableDag;
 use daggy::{NodeIndex, Walker};
-use std::cell::{Cell, RefCell};
+use std::cell::{Ref, RefCell};
 use std::collections::VecDeque;
-use std::ops::IndexMut;
 use std::rc::Rc;
 
 struct WorldData {
@@ -54,6 +53,12 @@ impl World {
     }
 }
 
+impl Default for World {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Clone for World {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -65,4 +70,13 @@ pub struct Node<'a, T> {
     world: World,
     recompute: Box<dyn Fn() -> T + 'a>,
     current_value: RefCell<T>,
+}
+
+impl<'a, T> Node<'a, T> {
+    pub fn data(&self) -> Ref<T> {
+        if self.world.is_dirty(self.index) {
+            *self.current_value.borrow_mut() = (self.recompute)();
+        }
+        self.current_value.borrow()
+    }
 }
