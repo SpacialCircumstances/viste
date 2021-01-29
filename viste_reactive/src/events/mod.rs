@@ -116,9 +116,33 @@ impl<'a, T: 'a> Node<'a, T> {
         self.0.world.create_node(
             move |t| {
                 //We cannot rely on the mapper functions purity, so we can't pass the change-tracking.
-                //Maybe there should be an API for a pure map function.
                 *t = mapper(&*this.data().0);
                 ComputationResult::Changed
+            },
+            initial,
+        )
+    }
+
+    pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F, initial: T) -> Node<'a, T>
+    where
+        T: Clone,
+    {
+        let this = self.clone();
+        let current_data = self.data().0;
+        let initial = if filter(&*current_data) {
+            current_data.clone()
+        } else {
+            initial
+        };
+        self.0.world.create_node(
+            move |t| {
+                let (v, changed) = this.data();
+                if changed == ComputationResult::Changed && filter(&*v) {
+                    *t = v.clone();
+                    ComputationResult::Changed
+                } else {
+                    ComputationResult::Unchanged
+                }
             },
             initial,
         )
