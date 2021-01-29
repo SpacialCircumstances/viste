@@ -89,13 +89,14 @@ struct NodeData<'a, T> {
 pub struct Node<'a, T>(Rc<NodeData<'a, T>>);
 
 impl<'a, T> Node<'a, T> {
-    pub fn data(&self) -> Ref<T> {
+    pub fn data(&self) -> (Ref<T>, ComputationResult) {
+        let mut res = ComputationResult::Unchanged;
         if self.0.world.is_dirty(self.0.index) {
             let mut value = self.0.current_value.borrow_mut();
-            (self.0.change)(&mut *value);
+            res = (self.0.change)(&mut *value);
             self.0.world.unmark(self.0.index);
         }
-        self.0.current_value.borrow()
+        (self.0.current_value.borrow(), res)
     }
 
     pub fn with<O, F: FnOnce(&T) -> O>(&self, f: F) -> O {
