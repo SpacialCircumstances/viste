@@ -88,7 +88,13 @@ struct NodeData<'a, T> {
 
 pub struct Node<'a, T>(Rc<NodeData<'a, T>>);
 
-impl<'a, T> Node<'a, T> {
+impl<'a, T> Clone for Node<'a, T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<'a, T: 'a> Node<'a, T> {
     pub fn data(&self) -> (Ref<T>, ComputationResult) {
         let mut res = ComputationResult::Unchanged;
         if self.0.world.is_dirty(self.0.index) {
@@ -102,5 +108,19 @@ impl<'a, T> Node<'a, T> {
     pub fn with<O, F: FnOnce(&T) -> O>(&self, f: F) -> O {
         let val = self.0.current_value.borrow();
         f(&*val)
+    }
+
+    pub fn map<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Node<'a, Z> {
+        let initial = mapper(&*self.data().0);
+        let this = self.clone();
+        self.0.world.create_node(
+            move |t| {
+                //We cannot rely on the mapper functions purity, so we can't pass the change-tracking.
+                //Maybe there should be an API for a pure map function.
+                *t = mapper(&*this.data().0);
+                ComputationResult::Changed
+            },
+            initial,
+        )
     }
 }
