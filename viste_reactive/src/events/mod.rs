@@ -40,6 +40,24 @@ impl World {
         let wd = self.0.borrow();
         wd.dependencies[node]
     }
+
+    pub fn create_node<'a, T, F: Fn() -> T + 'a>(&self, recompute: F) -> Node<'a, T> {
+        let index = self.0.borrow_mut().dependencies.add_node(false);
+        let initial = recompute();
+
+        Node {
+            index,
+            world: self.clone(),
+            recompute: Box::new(recompute),
+            current_value: RefCell::new(initial),
+        }
+    }
+}
+
+impl Clone for World {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
 pub struct Node<'a, T> {
