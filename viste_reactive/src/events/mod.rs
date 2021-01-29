@@ -1,60 +1,39 @@
-use std::cell::Cell;
+use daggy::stable_dag::StableDag;
+use daggy::{NodeIndex, Walker};
+use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
+use std::ops::IndexMut;
 use std::rc::Rc;
 
-struct Listeners<'a, T: Copy>(Vec<Box<dyn Fn(T) + 'a>>);
+struct WorldData {
+    dependencies: StableDag<bool, ()>,
+}
 
-impl<'a, T: Copy> Listeners<'a, T> {
+pub struct World(Rc<RefCell<WorldData>>);
+
+impl World {
     pub fn new() -> Self {
-        Self(Vec::new())
+        World(Rc::new(RefCell::new(WorldData {
+            dependencies: StableDag::new(),
+        })))
     }
 
-    pub fn add<F: Fn(T) + 'a>(&mut self, listener: F) {
-        self.0.push(Box::new(listener))
-    }
+    pub fn mark_dirty(&self, node: NodeIndex) {
+        let mut wd = self.0.borrow_mut();
+        let old_dirty = wd.dependencies[node];
+        if !old_dirty {
+            let mut roots_to_mark = VecDeque::new();
+            roots_to_mark.push_back(node);
 
-    pub fn invoke(&self, value: T) {
-        for l in &self.0 {
-            (l)(value)
+            while let Some(root) = roots_to_mark.pop_front() {
+                wd.dependencies[root] = true;
+                wd.dependencies
+                    .children(root)
+                    .iter(&wd.dependencies)
+                    .filter(|(_edge, child)| !wd.dependencies[*child])
+                    .for_each(|(_edge, r)| roots_to_mark.push_back(r));
+            }
         }
-    }
-}
-
-impl<'a, T: Copy> Default for Listeners<'a, T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub struct SharedDirtyFlag<'a>(Rc<Cell<bool>>, Listeners<'a, ()>);
-
-impl<'a> SharedDirtyFlag<'a> {
-    pub fn new(value: bool) -> Self {
-        Self(Rc::new(Cell::new(value)), Listeners::new())
-    }
-
-    pub fn add_listener<F: Fn(()) + 'a>(&mut self, listener: F) {
-        self.1.add(listener);
-    }
-
-    pub fn is_dirty(&self) -> bool {
-        self.0.get()
-    }
-
-    pub fn mark_dirty(&self) {
-        if !self.is_dirty() {
-            self.0.replace(true);
-            self.1.invoke(())
-        }
-    }
-
-    pub fn reset(&self) {
-        self.0.replace(false);
-    }
-}
-
-impl<'a> Default for SharedDirtyFlag<'a> {
-    fn default() -> Self {
-        Self::new(false)
     }
 }
 
