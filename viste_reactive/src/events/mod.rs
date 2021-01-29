@@ -79,4 +79,9 @@ impl<'a, T> Node<'a, T> {
         }
         self.current_value.borrow()
     }
+
+    pub fn with<O, F: FnOnce(&T) -> O>(&self, f: F) -> O {
+        let val = self.current_value.borrow();
+        f(&*val)
+    }
 }
