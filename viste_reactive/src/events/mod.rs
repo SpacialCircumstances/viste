@@ -44,6 +44,10 @@ impl World {
         self.0.borrow_mut().dependencies[node] = false;
     }
 
+    pub fn destroy_node(&self, node: NodeIndex) {
+        self.0.borrow_mut().dependencies.remove_node(node);
+    }
+
     pub fn create_node<'a, T, F: Fn(&mut T) -> ComputationResult + 'a>(
         &self,
         change: F,
@@ -95,6 +99,12 @@ pub struct Node<'a, T>(Rc<NodeData<'a, T>>);
 impl<'a, T> Clone for Node<'a, T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
+    }
+}
+
+impl<'a, T> Drop for Node<'a, T> {
+    fn drop(&mut self) {
+        self.0.world.destroy_node(self.0.index);
     }
 }
 
