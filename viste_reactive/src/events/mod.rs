@@ -40,6 +40,10 @@ impl World {
         wd.dependencies[node]
     }
 
+    pub fn unmark(&self, node: NodeIndex) {
+        self.0.borrow_mut().dependencies[node] = false;
+    }
+
     pub fn create_node<'a, T, F: Fn() -> T + 'a>(&self, recompute: F) -> Node<'a, T> {
         let index = self.0.borrow_mut().dependencies.add_node(false);
         let initial = recompute();
@@ -76,6 +80,7 @@ impl<'a, T> Node<'a, T> {
     pub fn data(&self) -> Ref<T> {
         if self.world.is_dirty(self.index) {
             *self.current_value.borrow_mut() = (self.recompute)();
+            self.world.unmark(self.index);
         }
         self.current_value.borrow()
     }
