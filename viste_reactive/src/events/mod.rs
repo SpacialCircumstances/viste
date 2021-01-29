@@ -48,12 +48,13 @@ impl World {
         let index = self.0.borrow_mut().dependencies.add_node(false);
         let initial = recompute();
 
-        Node {
+        let data = NodeData {
             index,
             world: self.clone(),
             recompute: Box::new(recompute),
             current_value: RefCell::new(initial),
-        }
+        };
+        Node(Rc::new(data))
     }
 }
 
@@ -69,24 +70,26 @@ impl Clone for World {
     }
 }
 
-pub struct Node<'a, T> {
+struct NodeData<'a, T> {
     index: NodeIndex,
     world: World,
     recompute: Box<dyn Fn() -> T + 'a>,
     current_value: RefCell<T>,
 }
 
+pub struct Node<'a, T>(Rc<NodeData<'a, T>>);
+
 impl<'a, T> Node<'a, T> {
     pub fn data(&self) -> Ref<T> {
-        if self.world.is_dirty(self.index) {
-            *self.current_value.borrow_mut() = (self.recompute)();
-            self.world.unmark(self.index);
+        if self.0.world.is_dirty(self.0.index) {
+            *self.0.current_value.borrow_mut() = (self.0.recompute)();
+            self.0.world.unmark(self.0.index);
         }
-        self.current_value.borrow()
+        self.0.current_value.borrow()
     }
 
     pub fn with<O, F: FnOnce(&T) -> O>(&self, f: F) -> O {
-        let val = self.current_value.borrow();
+        let val = self.0.current_value.borrow();
         f(&*val)
     }
 }
