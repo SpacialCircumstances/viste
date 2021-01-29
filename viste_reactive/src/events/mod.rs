@@ -44,7 +44,11 @@ impl World {
         self.0.borrow_mut().dependencies[node] = false;
     }
 
-    pub fn create_node<'a, T, F: Fn(&mut T) + 'a>(&self, change: F, initial: T) -> Node<'a, T> {
+    pub fn create_node<'a, T, F: Fn(&mut T) -> ComputationResult + 'a>(
+        &self,
+        change: F,
+        initial: T,
+    ) -> Node<'a, T> {
         let index = self.0.borrow_mut().dependencies.add_node(false);
 
         let data = NodeData {
@@ -69,10 +73,16 @@ impl Clone for World {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub enum ComputationResult {
+    Changed,
+    Unchanged,
+}
+
 struct NodeData<'a, T> {
     index: NodeIndex,
     world: World,
-    change: Box<dyn Fn(&mut T) + 'a>,
+    change: Box<dyn Fn(&mut T) -> ComputationResult + 'a>,
     current_value: RefCell<T>,
 }
 
