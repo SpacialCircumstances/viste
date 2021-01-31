@@ -48,7 +48,7 @@ impl World {
         self.0.borrow_mut().dependencies.remove_node(node);
     }
 
-    pub fn create_node<'a, T, F: Fn(&mut T) -> ComputationResult + 'a>(
+    pub fn create_node<'a, T, F: Fn(NodeIndex, &mut T) -> ComputationResult + 'a>(
         &self,
         change: F,
         initial: T,
@@ -72,8 +72,17 @@ impl World {
             .expect("Dependency cycle");
     }
 
+    pub fn remove_dependency(&self, parent: NodeIndex, child: NodeIndex) {
+        let mut wd = self.0.borrow_mut();
+        let edge = wd
+            .dependencies
+            .find_edge(parent, child)
+            .expect("Tried to remove dependency that does not exist");
+        wd.dependencies.remove_edge(edge);
+    }
+
     pub fn constant<'a, T>(&self, value: T) -> Node<'a, T> {
-        self.create_node(move |_| ComputationResult::Unchanged, value)
+        self.create_node(move |_, _| ComputationResult::Unchanged, value)
     }
 }
 
@@ -98,7 +107,7 @@ pub enum ComputationResult {
 struct NodeData<'a, T> {
     index: NodeIndex,
     world: World,
-    change: Box<dyn Fn(&mut T) -> ComputationResult + 'a>,
+    change: Box<dyn Fn(NodeIndex, &mut T) -> ComputationResult + 'a>,
     current_value: RefCell<T>,
 }
 
@@ -121,7 +130,7 @@ impl<'a, T: 'a> Node<'a, T> {
         let mut res = ComputationResult::Unchanged;
         if self.0.world.is_dirty(self.0.index) {
             let mut value = self.0.current_value.borrow_mut();
-            res = (self.0.change)(&mut *value);
+            res = (self.0.change)(self.0.index, &mut *value);
             self.0.world.unmark(self.0.index);
         }
         (self.0.current_value.borrow(), res)
@@ -140,11 +149,15 @@ impl<'a, T: 'a> Node<'a, T> {
         self.0.world.add_dependency(self.0.index, child);
     }
 
+    pub fn remove_depending(&self, child: NodeIndex) {
+        self.0.world.remove_dependency(self.0.index, child);
+    }
+
     pub fn map<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Node<'a, Z> {
         let initial = mapper(&*self.data().0);
         let this = self.clone();
         let node = self.0.world.create_node(
-            move |t| {
+            move |_idx, t| {
                 //We cannot rely on the mapper functions purity, so we can't pass the change-tracking.
                 *t = mapper(&*this.data().0);
                 ComputationResult::Changed
@@ -167,7 +180,7 @@ impl<'a, T: 'a> Node<'a, T> {
             initial
         };
         let node = self.0.world.create_node(
-            move |t| {
+            move |_idx, t| {
                 let (v, changed) = this.data();
                 if changed == ComputationResult::Changed && filter(&*v) {
                     *t = v.clone();
@@ -179,6 +192,36 @@ impl<'a, T: 'a> Node<'a, T> {
             initial,
         );
         self.add_depending(node.0.index);
+        node
+    }
+
+    pub fn bind<Z: Clone + 'a, B: Fn(&T) -> Node<'a, Z> + 'a>(&self, binder: B) -> Node<'a, Z> {
+        let this = self.clone();
+        let curr_data = self.data().0;
+        let current_node = binder(&*curr_data);
+        let cn_idx = current_node.0.index;
+        let initial = current_node.data().0.clone();
+        let node_store = RefCell::new(current_node);
+        let node = self.0.world.create_node(
+            move |idx, t| {
+                let (v, changed) = this.data();
+                if changed == ComputationResult::Changed {
+                    let new_node = binder(&*v);
+                    new_node.add_depending(idx);
+                    node_store.replace(new_node).remove_depending(idx);
+                }
+
+                let store = node_store.borrow();
+                let (v, changed) = store.data();
+                if changed == ComputationResult::Changed {
+                    *t = v.clone();
+                }
+                changed
+            },
+            initial,
+        );
+        self.add_depending(node.0.index);
+        self.0.world.add_dependency(cn_idx, node.0.index);
         node
     }
 }
