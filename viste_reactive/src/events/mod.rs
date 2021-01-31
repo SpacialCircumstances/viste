@@ -84,6 +84,26 @@ impl World {
     pub fn constant<'a, T>(&self, value: T) -> Node<'a, T> {
         self.create_node(move |_, _| ComputationResult::Unchanged, value)
     }
+
+    pub fn mutable<'a, T: Clone + 'a>(&self, initial: T) -> (Mutable<T>, Node<'a, T>) {
+        //TODO: Make nodes that do not cache their values possible
+        let world = self.clone();
+        let store = Rc::new(RefCell::new(initial.clone()));
+        let value_store = store.clone();
+        let node = self.create_node(
+            move |_idx, t| {
+                *t = store.borrow().clone();
+                ComputationResult::Changed
+            },
+            initial,
+        );
+        let mutable = Mutable {
+            world,
+            value_store,
+            index: node.0.index,
+        };
+        (mutable, node)
+    }
 }
 
 impl Default for World {
@@ -223,5 +243,18 @@ impl<'a, T: 'a> Node<'a, T> {
         self.add_depending(node.0.index);
         self.0.world.add_dependency(cn_idx, node.0.index);
         node
+    }
+}
+
+pub struct Mutable<T> {
+    world: World,
+    index: NodeIndex,
+    value_store: Rc<RefCell<T>>,
+}
+
+impl<T> Mutable<T> {
+    pub fn set(&mut self, value: T) {
+        self.value_store.replace(value);
+        self.world.mark_dirty(self.index);
     }
 }
