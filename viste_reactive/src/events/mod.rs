@@ -190,6 +190,23 @@ impl<'a, T: 'a> Node<'a, T> {
         node
     }
 
+    pub fn map_pure<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Node<'a, Z> {
+        let initial = mapper(&*self.data().0);
+        let this = self.clone();
+        let node = self.0.world.create_node(
+            move |_idx, t| {
+                let (data, res) = this.data();
+                if res == ComputationResult::Changed {
+                    *t = mapper(&*data);
+                }
+                res
+            },
+            initial,
+        );
+        self.add_depending(node.0.index);
+        node
+    }
+
     pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F, initial: T) -> Node<'a, T>
     where
         T: Clone,
