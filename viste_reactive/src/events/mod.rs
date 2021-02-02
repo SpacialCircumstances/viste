@@ -86,14 +86,16 @@ impl World {
     }
 
     pub fn mutable<'a, T: Clone + 'a>(&self, initial: T) -> (Mutable<T>, Node<'a, T>) {
-        //TODO: Make nodes that do not cache their values possible
         let world = self.clone();
-        let store = Rc::new(RefCell::new(initial.clone()));
+        let store = Rc::new(RefCell::new(None));
         let value_store = store.clone();
         let node = self.create_node(
-            move |_idx, t| {
-                *t = store.borrow().clone();
-                ComputationResult::Changed
+            move |_idx, t| match store.replace(None) {
+                Some(new_val) => {
+                    *t = new_val;
+                    ComputationResult::Changed
+                }
+                None => ComputationResult::Unchanged,
             },
             initial,
         );
@@ -249,12 +251,12 @@ impl<'a, T: 'a> Node<'a, T> {
 pub struct Mutable<T> {
     world: World,
     index: NodeIndex,
-    value_store: Rc<RefCell<T>>,
+    value_store: Rc<RefCell<Option<T>>>,
 }
 
 impl<T> Mutable<T> {
     pub fn set(&mut self, value: T) {
-        self.value_store.replace(value);
+        self.value_store.replace(Some(value));
         self.world.mark_dirty(self.index);
     }
 }
