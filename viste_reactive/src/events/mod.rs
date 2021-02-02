@@ -85,7 +85,7 @@ impl World {
         self.create_node(move |_, _| ComputationResult::Unchanged, value)
     }
 
-    pub fn mutable<'a, T: Clone + 'a>(&self, initial: T) -> (Mutable<T>, Node<'a, T>) {
+    pub fn mutable<'a, T: 'a>(&self, initial: T) -> (Mutable<T>, Node<'a, T>) {
         let world = self.clone();
         let store = Rc::new(RefCell::new(None));
         let value_store = store.clone();
