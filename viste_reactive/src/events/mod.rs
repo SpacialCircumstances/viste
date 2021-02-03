@@ -158,11 +158,6 @@ impl<'a, T: 'a> Node<'a, T> {
         (self.0.current_value.borrow(), res)
     }
 
-    pub fn with<O, F: FnOnce(&T) -> O>(&self, f: F) -> O {
-        let val = self.0.current_value.borrow();
-        f(&*val)
-    }
-
     pub fn is_dirty(&self) -> bool {
         self.0.world.is_dirty(self.0.index)
     }
