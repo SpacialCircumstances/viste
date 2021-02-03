@@ -148,7 +148,7 @@ impl<'a, T> Drop for Node<'a, T> {
 }
 
 impl<'a, T: 'a> Node<'a, T> {
-    pub fn data(&self) -> (Ref<T>, ComputationResult) {
+    fn data(&self) -> (Ref<T>, ComputationResult) {
         let mut res = ComputationResult::Unchanged;
         if self.0.world.is_dirty(self.0.index) {
             let mut value = self.0.current_value.borrow_mut();
@@ -156,6 +156,14 @@ impl<'a, T: 'a> Node<'a, T> {
             self.0.world.unmark(self.0.index);
         }
         (self.0.current_value.borrow(), res)
+    }
+
+    pub fn cloned_data(&self) -> (T, ComputationResult)
+    where
+        T: Clone,
+    {
+        let (d, r) = self.data();
+        (d.clone(), r)
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -282,7 +290,7 @@ mod tests {
         let world = World::new();
         let s1 = world.constant(3);
         let mapped = s1.map(|i| i + 2);
-        assert_eq!(5, *mapped.data().0);
+        assert_eq!(5, mapped.cloned_data().0);
     }
 
     #[test]
@@ -290,15 +298,15 @@ mod tests {
         let world = World::new();
         let (mut m1, n1) = world.mutable(2);
         let mapped = n1.map(|i| i + 2);
-        let (d1, c1) = mapped.data();
-        assert_eq!(4, *d1);
+        let (d1, c1) = mapped.cloned_data();
+        assert_eq!(4, d1);
         assert_eq!(ComputationResult::Unchanged, c1);
         m1.set(3);
-        let (d2, c2) = mapped.data();
-        assert_eq!(5, *d2);
+        let (d2, c2) = mapped.cloned_data();
+        assert_eq!(5, d2);
         assert_eq!(ComputationResult::Changed, c2);
-        let (d3, c3) = mapped.data();
-        assert_eq!(5, *d3);
+        let (d3, c3) = mapped.cloned_data();
+        assert_eq!(5, d3);
         assert_eq!(ComputationResult::Unchanged, c3);
     }
 }
