@@ -158,6 +158,23 @@ impl<'a, T: 'a> Node<'a, T> {
         (self.0.current_value.borrow(), res)
     }
 
+    pub fn if_changed<F: FnOnce(&T)>(&self, then: F) {
+        if let (new_data, ComputationResult::Changed) = self.data() {
+            then(&*new_data)
+        }
+    }
+
+    pub fn changed(&self) -> Option<T>
+    where
+        T: Clone,
+    {
+        if let (new_data, ComputationResult::Changed) = self.data() {
+            Some(new_data.clone())
+        } else {
+            None
+        }
+    }
+
     pub fn cloned_data(&self) -> (T, ComputationResult)
     where
         T: Clone,
