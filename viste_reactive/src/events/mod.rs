@@ -305,7 +305,20 @@ impl<T> Mutable<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::events::{ComputationResult, World};
+    use crate::events::{ComputationResult, Node, World};
+    use std::fmt::Debug;
+
+    fn assert_changed<T: Eq + Clone + Debug>(expected: T, node: &Node<T>) {
+        let (data, changed) = node.cloned_data();
+        assert_eq!(ComputationResult::Changed, changed);
+        assert_eq!(expected, data);
+    }
+
+    fn assert_unchanged<T: Eq + Clone + Debug>(expected: T, node: &Node<T>) {
+        let (data, changed) = node.cloned_data();
+        assert_eq!(ComputationResult::Unchanged, changed);
+        assert_eq!(expected, data);
+    }
 
     #[test]
     fn test_map1() {
@@ -320,15 +333,31 @@ mod tests {
         let world = World::new();
         let (mut m1, n1) = world.mutable(2);
         let mapped = n1.map(|i| i + 2);
-        let (d1, c1) = mapped.cloned_data();
-        assert_eq!(4, d1);
-        assert_eq!(ComputationResult::Unchanged, c1);
+        assert_unchanged(4, &mapped);
         m1.set(3);
-        let (d2, c2) = mapped.cloned_data();
-        assert_eq!(5, d2);
-        assert_eq!(ComputationResult::Changed, c2);
-        let (d3, c3) = mapped.cloned_data();
-        assert_eq!(5, d3);
-        assert_eq!(ComputationResult::Unchanged, c3);
+        assert_changed(5, &mapped);
+        assert_unchanged(5, &mapped);
+    }
+
+    #[test]
+    fn test_filter() {
+        let world = World::new();
+        let (mut m1, n1) = world.mutable(2);
+        let filtered = n1.filter(|x| x % 2 == 0, 0);
+        assert_unchanged(2, &filtered);
+        m1.set(4);
+        assert_changed(4, &filtered);
+        m1.set(5);
+        assert_unchanged(4, &filtered);
+    }
+
+    #[test]
+    fn test_filter2() {
+        let world = World::new();
+        let (mut m1, n1) = world.mutable(1);
+        let filtered = n1.filter(|x| x % 2 == 0, 0);
+        assert_unchanged(0, &filtered);
+        m1.set(4);
+        assert_changed(4, &filtered);
     }
 }
