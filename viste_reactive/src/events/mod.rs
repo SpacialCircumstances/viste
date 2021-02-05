@@ -277,7 +277,10 @@ impl<'a, T: 'a> Node<'a, T> {
 
                 let store = node_store.borrow();
                 let (v, child_changed) = store.data();
-                if child_changed == ComputationResult::Changed {
+                //We have changed when the child has changed or we have a new child node, even if that one has not changed
+                if child_changed == ComputationResult::Changed
+                    || changed == ComputationResult::Changed
+                {
                     *t = v.clone();
                     changed = ComputationResult::Changed;
                 }
