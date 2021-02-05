@@ -85,7 +85,7 @@ impl World {
         self.create_node(move |_, _| ComputationResult::Unchanged, value)
     }
 
-    pub fn mutable<'a, T: 'a>(&self, initial: T) -> (Mutable<T>, Node<'a, T>) {
+    pub fn mutable<'a, T: 'a>(&self, initial: T) -> (Mutable<'a, T>, Node<'a, T>) {
         let world = self.clone();
         let store = Rc::new(RefCell::new(None));
         let value_store = store.clone();
@@ -103,6 +103,7 @@ impl World {
             world,
             value_store,
             index: node.0.index,
+            _node: node.clone(),
         };
         (mutable, node)
     }
@@ -294,13 +295,15 @@ impl<'a, T: 'a> Node<'a, T> {
     }
 }
 
-pub struct Mutable<T> {
+pub struct Mutable<'a, T> {
     world: World,
     index: NodeIndex,
     value_store: Rc<RefCell<Option<T>>>,
+    //Node field exists purely to ensure that the node is not dropped before the mutable
+    _node: Node<'a, T>,
 }
 
-impl<T> Mutable<T> {
+impl<'a, T> Mutable<'a, T> {
     pub fn set(&mut self, value: T) {
         self.value_store.replace(Some(value));
         self.world.mark_dirty(self.index);
