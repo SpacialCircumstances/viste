@@ -360,4 +360,24 @@ mod tests {
         m1.set(4);
         assert_changed(4, &filtered);
     }
+
+    #[test]
+    fn test_bind() {
+        let world = World::new();
+        let (mut m1, n1) = world.mutable(0);
+        let (mut m2, n2) = world.mutable(0);
+        let (mut switch, switch_node) = world.mutable(true);
+        let value = switch_node.bind(|v| if *v { n1.clone() } else { n2.clone() });
+        assert_unchanged(0, &value);
+        m1.set(2);
+        assert_changed(2, &value);
+        switch.set(false);
+        assert_changed(0, &value);
+        m2.set(2);
+        assert_changed(2, &value);
+        m1.set(5);
+        assert_unchanged(2, &value);
+        switch.set(true);
+        assert_changed(5, &value);
+    }
 }
