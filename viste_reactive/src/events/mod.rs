@@ -268,7 +268,7 @@ impl<'a, T: 'a> Node<'a, T> {
         let node_store = RefCell::new(current_node);
         let node = self.0.world.create_node(
             move |idx, t| {
-                let (v, changed) = this.data();
+                let (v, mut changed) = this.data();
                 if changed == ComputationResult::Changed {
                     let new_node = binder(&*v);
                     new_node.add_depending(idx);
@@ -276,9 +276,10 @@ impl<'a, T: 'a> Node<'a, T> {
                 }
 
                 let store = node_store.borrow();
-                let (v, changed) = store.data();
-                if changed == ComputationResult::Changed {
+                let (v, child_changed) = store.data();
+                if child_changed == ComputationResult::Changed {
                     *t = v.clone();
+                    changed = ComputationResult::Changed;
                 }
                 changed
             },
