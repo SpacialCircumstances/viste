@@ -134,17 +134,17 @@ struct NodeData<'a, T> {
     current_value: RefCell<T>,
 }
 
+impl<'a, T> Drop for NodeData<'a, T> {
+    fn drop(&mut self) {
+        self.world.destroy_node(self.index);
+    }
+}
+
 pub struct Node<'a, T>(Rc<NodeData<'a, T>>);
 
 impl<'a, T> Clone for Node<'a, T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
-    }
-}
-
-impl<'a, T> Drop for Node<'a, T> {
-    fn drop(&mut self) {
-        self.0.world.destroy_node(self.0.index);
     }
 }
 
