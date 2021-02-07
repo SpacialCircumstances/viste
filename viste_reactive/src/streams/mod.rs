@@ -1,3 +1,4 @@
+use crate::events::{Node, World};
 use std::cell::{Cell, RefCell};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -31,6 +32,15 @@ impl<'a, T: 'a> RStream<'a, T> {
         RStream::new(move |t| {
             result.push(sender.send(t));
         })
+    }
+
+    pub fn store(world: &World, initial: T) -> (Self, Node<'a, T>) {
+        let (mutator, node) = world.mutable(initial);
+        let mutator = RefCell::new(mutator);
+        let stream = RStream::new(move |t| {
+            mutator.borrow_mut().set(t);
+        });
+        (stream, node)
     }
 
     pub fn mapped<F: 'a, M: Fn(F) -> T + 'a>(self, mapper: M) -> RStream<'a, F> {
