@@ -1,4 +1,4 @@
-use crate::RStream;
+use crate::streams::RStream;
 
 pub enum ListDelta<T> {
     Add(T),
