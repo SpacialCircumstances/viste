@@ -312,7 +312,7 @@ impl<'a, T> Mutable<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::events::{ComputationResult, Node, World};
+    use crate::signals::{ComputationResult, Node, World};
     use std::fmt::Debug;
 
     fn assert_changed<T: Eq + Clone + Debug>(expected: T, node: &Node<T>) {

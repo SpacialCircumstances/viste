@@ -1,4 +1,4 @@
-use crate::events::{Node, World};
+use crate::signals::{Node, World};
 use std::cell::{Cell, RefCell};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

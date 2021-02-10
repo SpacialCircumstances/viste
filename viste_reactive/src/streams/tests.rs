@@ -1,4 +1,4 @@
-use crate::events::World;
+use crate::signals::World;
 use crate::streams::{cache, cache_clone, cache_hash, cond, filter, filter_map, map, RStream};
 use std::cell::Cell;
 use std::str::FromStr;
