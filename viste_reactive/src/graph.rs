@@ -1,5 +1,6 @@
 use std::ops::Index;
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct NodeIndex(usize);
 
 struct Adjacency {
@@ -50,6 +51,17 @@ impl<T> Graph<T> {
             }
         }
         res_idx
+    }
+
+    pub fn add_edge(&mut self, from: NodeIndex, to: NodeIndex) {
+        match &mut self.nodes[from.0] {
+            Node::Filled(_, adj) => adj.children.push(to.0),
+            Node::Empty(_) => panic!("Expected filled node"),
+        }
+        match &mut self.nodes[to.0] {
+            Node::Filled(_, adj) => adj.parents.push(to.0),
+            Node::Empty(_) => panic!("Expected filled node"),
+        }
     }
 }
 
