@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 pub struct NodeIndex(usize);
 
 struct Adjacency {
@@ -48,5 +50,16 @@ impl<T> Graph<T> {
             }
         }
         res_idx
+    }
+}
+
+impl<T> Index<NodeIndex> for Graph<T> {
+    type Output = T;
+
+    fn index(&self, index: NodeIndex) -> &Self::Output {
+        match &self.nodes[index.0] {
+            Node::Filled(val, _) => val,
+            Node::Empty(_) => panic!("Expected filled node"),
+        }
     }
 }
