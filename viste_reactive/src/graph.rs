@@ -63,6 +63,21 @@ impl<T> Graph<T> {
             Node::Empty(_) => panic!("Expected filled node"),
         }
     }
+
+    pub fn remove_edge(&mut self, from: NodeIndex, to: NodeIndex) {
+        match &mut self.nodes[from.0] {
+            Node::Filled(_, adj) => {
+                adj.children.remove(to.0);
+            }
+            Node::Empty(_) => panic!("Expected filled node"),
+        }
+        match &mut self.nodes[to.0] {
+            Node::Filled(_, adj) => {
+                adj.parents.remove(to.0);
+            }
+            Node::Empty(_) => panic!("Expected filled node"),
+        }
+    }
 }
 
 impl<T> Index<NodeIndex> for Graph<T> {
