@@ -1,3 +1,4 @@
+use std::mem::replace;
 use std::ops::Index;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -26,8 +27,15 @@ impl<T> Graph<T> {
         }
     }
 
-    fn get_adjacency(&mut self, node: usize) -> &mut Adjacency {
+    fn get_adjacency_mut(&mut self, node: usize) -> &mut Adjacency {
         match &mut self.nodes[node] {
+            Node::Empty(_) => panic!("Expected filled node"),
+            Node::Filled(_, adj) => adj,
+        }
+    }
+
+    fn get_adjacency(&self, node: usize) -> &Adjacency {
+        match &self.nodes[node] {
             Node::Empty(_) => panic!("Expected filled node"),
             Node::Filled(_, adj) => adj,
         }
@@ -61,13 +69,29 @@ impl<T> Graph<T> {
     }
 
     pub fn add_edge(&mut self, from: NodeIndex, to: NodeIndex) {
-        self.get_adjacency(from.0).children.push(to.0);
-        self.get_adjacency(to.0).parents.push(from.0);
+        self.get_adjacency_mut(from.0).children.push(to.0);
+        self.get_adjacency_mut(to.0).parents.push(from.0);
     }
 
     pub fn remove_edge(&mut self, from: NodeIndex, to: NodeIndex) {
-        self.get_adjacency(from.0).children.remove(to.0);
-        self.get_adjacency(to.0).parents.remove(from.0);
+        self.get_adjacency_mut(from.0).children.remove(to.0);
+        self.get_adjacency_mut(to.0).parents.remove(from.0);
+    }
+
+    pub fn remove_node(&mut self, node: NodeIndex) -> T {
+        //TODO: Find next empty node
+        match replace(&mut self.nodes[node.0], Node::Empty(None)) {
+            Node::Filled(data, adj) => {
+                for ch in &adj.children {
+                    self.get_adjacency_mut(*ch).parents.remove(node.0);
+                }
+                for p in &adj.parents {
+                    self.get_adjacency_mut(*p).children.remove(node.0);
+                }
+                data
+            }
+            Node::Empty(_) => panic!("Expected filled node"),
+        }
     }
 }
 
