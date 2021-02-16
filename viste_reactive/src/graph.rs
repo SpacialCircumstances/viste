@@ -26,6 +26,13 @@ impl<T> Graph<T> {
         }
     }
 
+    fn get_adjacency(&mut self, node: usize) -> &mut Adjacency {
+        match &mut self.nodes[node] {
+            Node::Empty(_) => panic!("Expected filled node"),
+            Node::Filled(_, adj) => adj,
+        }
+    }
+
     pub fn add_node(&mut self, value: T) -> NodeIndex {
         let node = Node::Filled(
             value,
@@ -54,29 +61,13 @@ impl<T> Graph<T> {
     }
 
     pub fn add_edge(&mut self, from: NodeIndex, to: NodeIndex) {
-        match &mut self.nodes[from.0] {
-            Node::Filled(_, adj) => adj.children.push(to.0),
-            Node::Empty(_) => panic!("Expected filled node"),
-        }
-        match &mut self.nodes[to.0] {
-            Node::Filled(_, adj) => adj.parents.push(to.0),
-            Node::Empty(_) => panic!("Expected filled node"),
-        }
+        self.get_adjacency(from.0).children.push(to.0);
+        self.get_adjacency(to.0).parents.push(from.0);
     }
 
     pub fn remove_edge(&mut self, from: NodeIndex, to: NodeIndex) {
-        match &mut self.nodes[from.0] {
-            Node::Filled(_, adj) => {
-                adj.children.remove(to.0);
-            }
-            Node::Empty(_) => panic!("Expected filled node"),
-        }
-        match &mut self.nodes[to.0] {
-            Node::Filled(_, adj) => {
-                adj.parents.remove(to.0);
-            }
-            Node::Empty(_) => panic!("Expected filled node"),
-        }
+        self.get_adjacency(from.0).children.remove(to.0);
+        self.get_adjacency(to.0).parents.remove(from.0);
     }
 }
 
