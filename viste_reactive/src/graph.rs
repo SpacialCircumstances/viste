@@ -62,6 +62,10 @@ impl<T> Graph<T> {
         }
     }
 
+    pub fn has_edge(&self, from: NodeIndex, to: NodeIndex) -> bool {
+        self.get_adjacency(from.0).children.contains(&to.0)
+    }
+
     pub fn add_node(&mut self, value: T) -> NodeIndex {
         let node = Node::Filled(
             value,
