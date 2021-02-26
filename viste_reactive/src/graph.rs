@@ -127,6 +127,23 @@ impl<T> Graph<T> {
             }
         }
     }
+
+    pub fn search_children_mut<F: FnMut(&mut T) -> SearchContinuation>(
+        &mut self,
+        mut searcher: F,
+        start_node: NodeIndex,
+    ) {
+        let mut to_search = VecDeque::new();
+        to_search.push_back(start_node.0);
+
+        while let Some(n) = to_search.pop_front() {
+            if searcher(self.get_data_mut(n)) == SearchContinuation::Continue {
+                for child in &self.get_adjacency(n).children {
+                    to_search.push_back(*child);
+                }
+            }
+        }
+    }
 }
 
 impl<T> Index<NodeIndex> for Graph<T> {
