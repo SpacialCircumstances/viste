@@ -77,7 +77,7 @@ impl<T> Graph<T> {
         match self.free_nodes.pop_front() {
             None => {
                 self.nodes.push(node);
-                NodeIndex(self.nodes.len())
+                NodeIndex(self.nodes.len() - 1)
             }
             Some(free_idx) => match self.nodes[free_idx] {
                 Node::Filled(_, _) => panic!("Expected empty node"),
