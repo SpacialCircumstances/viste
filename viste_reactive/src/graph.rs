@@ -20,6 +20,12 @@ pub struct Graph<T> {
     free_nodes: VecDeque<usize>,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SearchContinuation {
+    Continue,
+    Stop,
+}
+
 impl<T> Graph<T> {
     pub fn new() -> Self {
         Graph {
@@ -39,6 +45,20 @@ impl<T> Graph<T> {
         match &self.nodes[node] {
             Node::Empty => panic!("Expected filled node"),
             Node::Filled(_, adj) => adj,
+        }
+    }
+
+    fn get_data(&self, node: usize) -> &T {
+        match &self.nodes[node] {
+            Node::Empty => panic!("Expected filled node"),
+            Node::Filled(data, _) => data,
+        }
+    }
+
+    fn get_data_mut(&mut self, node: usize) -> &mut T {
+        match &mut self.nodes[node] {
+            Node::Empty => panic!("Expected filled node"),
+            Node::Filled(data, _) => data,
         }
     }
 
@@ -90,15 +110,29 @@ impl<T> Graph<T> {
             Node::Empty => panic!("Expected filled node"),
         }
     }
+
+    pub fn search_children<F: FnMut(&T) -> SearchContinuation>(
+        &self,
+        mut searcher: F,
+        start_node: NodeIndex,
+    ) {
+        let mut to_search = VecDeque::new();
+        to_search.push_back(start_node.0);
+
+        while let Some(n) = to_search.pop_front() {
+            if searcher(self.get_data(n)) == SearchContinuation::Continue {
+                for child in &self.get_adjacency(n).children {
+                    to_search.push_back(*child);
+                }
+            }
+        }
+    }
 }
 
 impl<T> Index<NodeIndex> for Graph<T> {
     type Output = T;
 
     fn index(&self, index: NodeIndex) -> &Self::Output {
-        match &self.nodes[index.0] {
-            Node::Filled(val, _) => val,
-            Node::Empty => panic!("Expected filled node"),
-        }
+        self.get_data(index.0)
     }
 }
