@@ -157,3 +157,30 @@ impl<T> Index<NodeIndex> for Graph<T> {
         self.get_data(index.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::graph::Graph;
+
+    #[test]
+    fn test_adding() {
+        let mut graph = Graph::new();
+        let n1 = graph.add_node(2);
+        let n2 = graph.add_node(3);
+        graph.add_edge(n1, n2);
+        assert!(graph.has_edge(n1, n2));
+        assert_eq!(graph.has_edge(n2, n1), false);
+    }
+
+    #[test]
+    fn test_removal() {
+        let mut graph = Graph::new();
+        let n1 = graph.add_node(2);
+        let n2 = graph.add_node(3);
+        graph.add_edge(n1, n2);
+        graph.remove_edge(n1, n2);
+        graph.remove_node(n1);
+        graph.remove_node(n2);
+        assert_eq!(graph.has_edge(n1, n2), false);
+    }
+}
