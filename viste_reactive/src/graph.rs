@@ -48,6 +48,13 @@ impl<T> Graph<T> {
         }
     }
 
+    fn try_get_adjacency(&self, node: usize) -> Option<&Adjacency> {
+        match &self.nodes[node] {
+            Node::Empty => None,
+            Node::Filled(_, adj) => Some(adj),
+        }
+    }
+
     fn get_data(&self, node: usize) -> &T {
         match &self.nodes[node] {
             Node::Empty => panic!("Expected filled node"),
@@ -63,7 +70,11 @@ impl<T> Graph<T> {
     }
 
     pub fn has_edge(&self, from: NodeIndex, to: NodeIndex) -> bool {
-        self.get_adjacency(from.0).children.contains(&to.0)
+        if let Some(adj) = self.try_get_adjacency(from.0) {
+            adj.children.contains(&to.0)
+        } else {
+            false
+        }
     }
 
     pub fn add_node(&mut self, value: T) -> NodeIndex {
