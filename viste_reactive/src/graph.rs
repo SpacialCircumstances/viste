@@ -95,8 +95,15 @@ impl<T> Graph<T> {
     }
 
     pub fn remove_edge(&mut self, from: NodeIndex, to: NodeIndex) {
-        self.get_adjacency_mut(from.0).children.remove(to.0);
-        self.get_adjacency_mut(to.0).parents.remove(from.0);
+        let mut from_adj = self.get_adjacency_mut(from.0);
+        if let Some(child_pos) = from_adj.children.iter().position(|x| *x == to.0) {
+            from_adj.children.swap_remove(child_pos);
+        }
+
+        let mut to_adj = self.get_adjacency_mut(to.0);
+        if let Some(parent_pos) = to_adj.parents.iter().position(|x| *x == from.0) {
+            to_adj.parents.swap_remove(parent_pos);
+        }
     }
 
     pub fn remove_node(&mut self, node: NodeIndex) -> T {
