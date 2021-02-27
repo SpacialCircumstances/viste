@@ -77,6 +77,10 @@ impl<T> Graph<T> {
         }
     }
 
+    pub fn node_exists(&self, node: NodeIndex) -> bool {
+        self.try_get_adjacency(node.0).is_some()
+    }
+
     pub fn add_node(&mut self, value: T) -> NodeIndex {
         let node = Node::Filled(
             value,
@@ -197,8 +201,12 @@ mod tests {
         let n2 = graph.add_node(3);
         graph.add_edge(n1, n2);
         graph.remove_edge(n1, n2);
+        assert_eq!(graph.has_edge(n1, n2), false);
+        assert!(graph.node_exists(n1));
+        assert!(graph.node_exists(n2));
         graph.remove_node(n1);
         graph.remove_node(n2);
-        assert_eq!(graph.has_edge(n1, n2), false);
+        assert_eq!(graph.node_exists(n1), false);
+        assert_eq!(graph.node_exists(n2), false);
     }
 }
