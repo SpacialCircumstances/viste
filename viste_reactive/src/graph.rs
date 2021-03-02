@@ -83,7 +83,7 @@ impl<T> Graph<T> {
         }
     }
 
-    pub fn node_exists(&self, node: NodeIndex) -> bool {
+    pub fn has_node(&self, node: NodeIndex) -> bool {
         self.try_get_adjacency(node.0).is_some()
     }
 
@@ -204,12 +204,12 @@ mod tests {
         graph.add_edge(n1, n2);
         graph.remove_edge(n1, n2);
         assert_eq!(graph.has_edge(n1, n2), false);
-        assert!(graph.node_exists(n1));
-        assert!(graph.node_exists(n2));
+        assert!(graph.has_node(n1));
+        assert!(graph.has_node(n2));
         graph.remove_node(n1);
         graph.remove_node(n2);
-        assert_eq!(graph.node_exists(n1), false);
-        assert_eq!(graph.node_exists(n2), false);
+        assert_eq!(graph.has_node(n1), false);
+        assert_eq!(graph.has_node(n2), false);
     }
 
     #[test]
@@ -223,7 +223,7 @@ mod tests {
         graph.add_edge(n2, n3);
         graph.remove_node(n3);
         let n4 = graph.add_node(5);
-        assert_eq!(graph.node_exists(n4), true);
+        assert_eq!(graph.has_node(n4), true);
         assert_eq!(graph.has_edge(n1, n3), false);
         assert_eq!(graph.has_edge(n1, n2), true);
         assert_eq!(graph.has_edge(n1, n4), false);
