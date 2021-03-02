@@ -26,6 +26,12 @@ pub enum SearchContinuation {
     Stop,
 }
 
+fn remove_from<T: Eq>(vec: &mut Vec<T>, element: T) {
+    if let Some(child_pos) = vec.iter().position(|x| *x == element) {
+        vec.swap_remove(child_pos);
+    }
+}
+
 impl<T> Graph<T> {
     pub fn new() -> Self {
         Graph {
@@ -111,24 +117,20 @@ impl<T> Graph<T> {
 
     pub fn remove_edge(&mut self, from: NodeIndex, to: NodeIndex) {
         let mut from_adj = self.get_adjacency_mut(from.0);
-        if let Some(child_pos) = from_adj.children.iter().position(|x| *x == to.0) {
-            from_adj.children.swap_remove(child_pos);
-        }
+        remove_from(&mut from_adj.children, to.0);
 
         let mut to_adj = self.get_adjacency_mut(to.0);
-        if let Some(parent_pos) = to_adj.parents.iter().position(|x| *x == from.0) {
-            to_adj.parents.swap_remove(parent_pos);
-        }
+        remove_from(&mut to_adj.parents, from.0);
     }
 
     pub fn remove_node(&mut self, node: NodeIndex) -> T {
         match replace(&mut self.nodes[node.0], Node::Empty) {
             Node::Filled(data, adj) => {
                 for ch in &adj.children {
-                    self.get_adjacency_mut(*ch).parents.remove(node.0);
+                    remove_from(&mut self.get_adjacency_mut(*ch).parents, node.0);
                 }
                 for p in &adj.parents {
-                    self.get_adjacency_mut(*p).children.remove(node.0);
+                    remove_from(&mut self.get_adjacency_mut(*p).children, node.0);
                 }
                 self.free_nodes.push_back(node.0);
                 data
