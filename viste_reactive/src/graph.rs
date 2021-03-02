@@ -209,4 +209,21 @@ mod tests {
         assert_eq!(graph.node_exists(n1), false);
         assert_eq!(graph.node_exists(n2), false);
     }
+
+    #[test]
+    fn test_add_remove_and_edge() {
+        let mut graph = Graph::new();
+        let n1 = graph.add_node(3);
+        let n2 = graph.add_node(4);
+        let n3 = graph.add_node(5);
+        graph.add_edge(n1, n2);
+        graph.add_edge(n1, n3);
+        graph.add_edge(n2, n3);
+        graph.remove_node(n3);
+        let n4 = graph.add_node(5);
+        assert_eq!(graph.node_exists(n4), true);
+        assert_eq!(graph.has_edge(n1, n3), false);
+        assert_eq!(graph.has_edge(n1, n2), true);
+        assert_eq!(graph.has_edge(n1, n4), false);
+    }
 }
