@@ -1,11 +1,10 @@
-use daggy::stable_dag::StableDag;
-use daggy::{NodeIndex, Walker};
+use crate::graph::{Graph, NodeIndex, SearchContinuation};
 use std::cell::{Ref, RefCell};
 use std::collections::VecDeque;
 use std::rc::Rc;
 
 struct WorldData {
-    dependencies: StableDag<bool, ()>,
+    dependencies: Graph<bool>,
 }
 
 pub struct World(Rc<RefCell<WorldData>>);
@@ -13,7 +12,7 @@ pub struct World(Rc<RefCell<WorldData>>);
 impl World {
     pub fn new() -> Self {
         World(Rc::new(RefCell::new(WorldData {
-            dependencies: StableDag::new(),
+            dependencies: Graph::new(),
         })))
     }
 
@@ -21,17 +20,17 @@ impl World {
         let mut wd = self.0.borrow_mut();
         let old_dirty = wd.dependencies[node];
         if !old_dirty {
-            let mut roots_to_mark = VecDeque::new();
-            roots_to_mark.push_back(node);
-
-            while let Some(root) = roots_to_mark.pop_front() {
-                wd.dependencies[root] = true;
-                wd.dependencies
-                    .children(root)
-                    .iter(&wd.dependencies)
-                    .filter(|(_edge, child)| !wd.dependencies[*child])
-                    .for_each(|(_edge, r)| roots_to_mark.push_back(r));
-            }
+            wd.dependencies.search_children_mut(
+                |child| {
+                    if !*child {
+                        *child = true;
+                        SearchContinuation::Continue
+                    } else {
+                        SearchContinuation::Stop
+                    }
+                },
+                node,
+            );
         }
     }
 
@@ -65,20 +64,12 @@ impl World {
     }
 
     pub fn add_dependency(&self, parent: NodeIndex, child: NodeIndex) {
-        self.0
-            .borrow_mut()
-            .dependencies
-            .add_edge(parent, child, ())
-            .expect("Dependency cycle");
+        self.0.borrow_mut().dependencies.add_edge(parent, child);
     }
 
     pub fn remove_dependency(&self, parent: NodeIndex, child: NodeIndex) {
         let mut wd = self.0.borrow_mut();
-        let edge = wd
-            .dependencies
-            .find_edge(parent, child)
-            .expect("Tried to remove dependency that does not exist");
-        wd.dependencies.remove_edge(edge);
+        wd.dependencies.remove_edge(parent, child);
     }
 
     pub fn constant<'a, T>(&self, value: T) -> Node<'a, T> {

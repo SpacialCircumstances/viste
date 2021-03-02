@@ -3,7 +3,3 @@ name = "viste_reactive"
 version = "0.1.0"
 authors = ["SpacialCircumstances <SpacialCircumstances@users.noreply.github.com>"]
 edition = "2018"
-
-[dependencies.daggy]
-version = "0.7.0"
-features = ["stable_dag"]
