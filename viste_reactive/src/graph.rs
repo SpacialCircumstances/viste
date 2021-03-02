@@ -1,6 +1,6 @@
 use std::collections::vec_deque::VecDeque;
 use std::mem::replace;
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct NodeIndex(usize);
@@ -179,6 +179,12 @@ impl<T> Index<NodeIndex> for Graph<T> {
 
     fn index(&self, index: NodeIndex) -> &Self::Output {
         self.get_data(index.0)
+    }
+}
+
+impl<T> IndexMut<NodeIndex> for Graph<T> {
+    fn index_mut(&mut self, index: NodeIndex) -> &mut Self::Output {
+        self.get_data_mut(index.0)
     }
 }
 
