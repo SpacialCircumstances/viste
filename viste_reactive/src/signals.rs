@@ -1,6 +1,5 @@
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
 use std::cell::{Ref, RefCell};
-use std::collections::VecDeque;
 use std::rc::Rc;
 
 struct WorldData {

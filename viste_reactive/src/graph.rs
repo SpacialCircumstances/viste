@@ -116,10 +116,10 @@ impl<T> Graph<T> {
     }
 
     pub fn remove_edge(&mut self, from: NodeIndex, to: NodeIndex) {
-        let mut from_adj = self.get_adjacency_mut(from.0);
+        let from_adj = self.get_adjacency_mut(from.0);
         remove_from(&mut from_adj.children, to.0);
 
-        let mut to_adj = self.get_adjacency_mut(to.0);
+        let to_adj = self.get_adjacency_mut(to.0);
         remove_from(&mut to_adj.parents, from.0);
     }
 
