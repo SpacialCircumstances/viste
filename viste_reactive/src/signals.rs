@@ -50,7 +50,7 @@ impl World {
         &self,
         change: F,
         initial: T,
-    ) -> Node<'a, T> {
+    ) -> Signal<'a, T> {
         let index = self.0.borrow_mut().dependencies.add_node(false);
 
         let data = NodeData {
@@ -59,7 +59,7 @@ impl World {
             change: Box::new(change),
             current_value: RefCell::new(initial),
         };
-        Node(Rc::new(data))
+        Signal(Rc::new(data))
     }
 
     pub fn add_dependency(&self, parent: NodeIndex, child: NodeIndex) {
@@ -71,11 +71,11 @@ impl World {
         wd.dependencies.remove_edge(parent, child);
     }
 
-    pub fn constant<'a, T>(&self, value: T) -> Node<'a, T> {
+    pub fn constant<'a, T>(&self, value: T) -> Signal<'a, T> {
         self.create_node(move |_, _| ComputationResult::Unchanged, value)
     }
 
-    pub fn mutable<'a, T: 'a>(&self, initial: T) -> (Mutable<'a, T>, Node<'a, T>) {
+    pub fn mutable<'a, T: 'a>(&self, initial: T) -> (Mutable<'a, T>, Signal<'a, T>) {
         let world = self.clone();
         let store = Rc::new(RefCell::new(None));
         let value_store = store.clone();
@@ -130,15 +130,15 @@ impl<'a, T> Drop for NodeData<'a, T> {
     }
 }
 
-pub struct Node<'a, T>(Rc<NodeData<'a, T>>);
+pub struct Signal<'a, T>(Rc<NodeData<'a, T>>);
 
-impl<'a, T> Clone for Node<'a, T> {
+impl<'a, T> Clone for Signal<'a, T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<'a, T: 'a> Node<'a, T> {
+impl<'a, T: 'a> Signal<'a, T> {
     fn data(&self) -> (Ref<T>, ComputationResult) {
         let mut res = ComputationResult::Unchanged;
         if self.0.world.is_dirty(self.0.index) {
@@ -193,7 +193,7 @@ impl<'a, T: 'a> Node<'a, T> {
         self.0.world.remove_dependency(self.0.index, child);
     }
 
-    pub fn map<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Node<'a, Z> {
+    pub fn map<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Signal<'a, Z> {
         let initial = mapper(&*self.data().0);
         let this = self.clone();
         let node = self.0.world.create_node(
@@ -208,7 +208,7 @@ impl<'a, T: 'a> Node<'a, T> {
         node
     }
 
-    pub fn map_pure<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Node<'a, Z> {
+    pub fn map_pure<Z, M: Fn(&T) -> Z + 'a>(&self, mapper: M) -> Signal<'a, Z> {
         let initial = mapper(&*self.data().0);
         let this = self.clone();
         let node = self.0.world.create_node(
@@ -225,7 +225,7 @@ impl<'a, T: 'a> Node<'a, T> {
         node
     }
 
-    pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F, initial: T) -> Node<'a, T>
+    pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F, initial: T) -> Signal<'a, T>
     where
         T: Clone,
     {
@@ -252,7 +252,7 @@ impl<'a, T: 'a> Node<'a, T> {
         node
     }
 
-    pub fn bind<Z: Clone + 'a, B: Fn(&T) -> Node<'a, Z> + 'a>(&self, binder: B) -> Node<'a, Z> {
+    pub fn bind<Z: Clone + 'a, B: Fn(&T) -> Signal<'a, Z> + 'a>(&self, binder: B) -> Signal<'a, Z> {
         let this = self.clone();
         let curr_data = self.data().0;
         let current_node = binder(&*curr_data);
@@ -292,7 +292,7 @@ pub struct Mutable<'a, T> {
     index: NodeIndex,
     value_store: Rc<RefCell<Option<T>>>,
     //Node field exists purely to ensure that the node is not dropped before the mutable
-    _node: Node<'a, T>,
+    _node: Signal<'a, T>,
 }
 
 impl<'a, T> Mutable<'a, T> {
@@ -304,16 +304,16 @@ impl<'a, T> Mutable<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::signals::{ComputationResult, Node, World};
+    use crate::signals::{ComputationResult, Signal, World};
     use std::fmt::Debug;
 
-    fn assert_changed<T: Eq + Clone + Debug>(expected: T, node: &Node<T>) {
+    fn assert_changed<T: Eq + Clone + Debug>(expected: T, node: &Signal<T>) {
         let (data, changed) = node.cloned_data();
         assert_eq!(ComputationResult::Changed, changed);
         assert_eq!(expected, data);
     }
 
-    fn assert_unchanged<T: Eq + Clone + Debug>(expected: T, node: &Node<T>) {
+    fn assert_unchanged<T: Eq + Clone + Debug>(expected: T, node: &Signal<T>) {
         let (data, changed) = node.cloned_data();
         assert_eq!(ComputationResult::Unchanged, changed);
         assert_eq!(expected, data);

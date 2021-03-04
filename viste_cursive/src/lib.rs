@@ -1,16 +1,16 @@
 use cursive::view::ViewWrapper;
 use cursive::views::{TextContent, TextView};
 use cursive::{Vec2, View};
-use viste_reactive::signals::Node;
+use viste_reactive::signals::Signal;
 
 pub struct RTextView {
     view: TextView,
-    text: Node<'static, String>,
+    text: Signal<'static, String>,
     content: TextContent,
 }
 
 impl RTextView {
-    pub fn new(text: Node<'static, String>) -> Self {
+    pub fn new(text: Signal<'static, String>) -> Self {
         let content = text.with_data(|t, _| TextContent::new(t));
 
         let view = TextView::new_with_content(content.clone());

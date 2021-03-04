@@ -1,4 +1,4 @@
-use crate::signals::{Node, World};
+use crate::signals::{Signal, World};
 use std::cell::{Cell, RefCell};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -31,7 +31,7 @@ impl<'a, T: 'a> Event<'a, T> {
         })
     }
 
-    pub fn store(world: &World, initial: T) -> (Self, Node<'a, T>) {
+    pub fn store(world: &World, initial: T) -> (Self, Signal<'a, T>) {
         let (mutator, node) = world.mutable(initial);
         let mutator = RefCell::new(mutator);
         let stream = Event::new(move |t| {
@@ -183,7 +183,7 @@ pub fn fold<'a, T: 'a, D: 'a, F: Fn(T, &D) -> D + 'a>(
     world: &World,
     folder: F,
     initial: D,
-) -> (Event<'a, T>, Node<'a, D>) {
+) -> (Event<'a, T>, Signal<'a, D>) {
     let (mut set, value) = world.mutable(initial);
     let vc = value.clone();
     let set_store = RefCell::new(set);
