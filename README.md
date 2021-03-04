@@ -1,6 +1,6 @@
 # Viste
 
-Experimenting with reactive programming in Rust.
+Viste (Quenya for "change") is a simple library for reactive programming with Rust. Viste is focused on an efficient implementation of reactive programming and tries to avoid unnecessary cloning and recomputation.
 
 ## Events
 
