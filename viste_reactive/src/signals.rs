@@ -149,14 +149,16 @@ impl<'a, T: 'a> Node<'a, T> {
         (self.0.current_value.borrow(), res)
     }
 
-    pub fn with_data<F: FnOnce(&T, ComputationResult)>(&self, then: F) {
+    pub fn with_data<R, F: FnOnce(&T, ComputationResult) -> R>(&self, then: F) -> R {
         let (data, cr) = self.data();
-        then(&*data, cr);
+        then(&*data, cr)
     }
 
-    pub fn if_changed<F: FnOnce(&T)>(&self, then: F) {
+    pub fn if_changed<R, F: FnOnce(&T) -> R>(&self, then: F) -> Option<R> {
         if let (new_data, ComputationResult::Changed) = self.data() {
-            then(&*new_data)
+            Some(then(&*new_data))
+        } else {
+            None
         }
     }
 

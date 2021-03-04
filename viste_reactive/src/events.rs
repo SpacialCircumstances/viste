@@ -179,9 +179,28 @@ pub fn cond<'a, T: 'a, F: Fn(&T) -> bool + 'a, I1: Into<Event<'a, T>>, I2: Into<
     })
 }
 
+pub fn fold<'a, T: 'a, D: 'a, F: Fn(T, &D) -> D + 'a>(
+    world: &World,
+    folder: F,
+    initial: D,
+) -> (Event<'a, T>, Node<'a, D>) {
+    let (mut set, value) = world.mutable(initial);
+    let vc = value.clone();
+    let set_store = RefCell::new(set);
+    (
+        Event::new(move |t| {
+            let new_data = vc.with_data(|d, _| folder(t, d));
+            set_store.borrow_mut().set(new_data);
+        }),
+        value,
+    )
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::events::{cache, cache_clone, cache_hash, cond, filter, filter_map, map, Event};
+    use crate::events::{
+        cache, cache_clone, cache_hash, cond, filter, filter_map, fold, map, Event,
+    };
     use crate::signals::World;
     use std::cell::Cell;
     use std::str::FromStr;
@@ -288,5 +307,16 @@ mod tests {
         cw.push(0);
         assert_eq!(store2.cloned_data().0, 1);
         assert_eq!(store1.cloned_data().0, 0);
+    }
+
+    #[test]
+    fn test_fold() {
+        let world = World::new();
+        let (folder, store) = fold(&world, |a, b| a + *b, 0);
+        assert_eq!(store.cloned_data().0, 0);
+        folder.push(2);
+        assert_eq!(store.cloned_data().0, 2);
+        folder.push(2);
+        assert_eq!(store.cloned_data().0, 4);
     }
 }
