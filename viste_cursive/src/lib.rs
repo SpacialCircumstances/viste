@@ -1,6 +1,6 @@
 use cursive::view::ViewWrapper;
 use cursive::views::{TextContent, TextView};
-use cursive::{Printer, Vec2, View, With};
+use cursive::{Vec2, View};
 use viste_reactive::signals::Node;
 
 pub struct RTextView {
