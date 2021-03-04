@@ -179,6 +179,24 @@ pub fn cond<'a, T: 'a, F: Fn(&T) -> bool + 'a, I1: Into<Event<'a, T>>, I2: Into<
     })
 }
 
+pub fn fold<'a, T: 'a, D: 'a, F: Fn(T, &D) -> D + 'a>(
+    world: &World,
+    folder: F,
+    initial: D,
+) -> (Event<'a, T>, Node<'a, D>) {
+    let (mut set, value) = world.mutable(initial);
+    let set_store = RefCell::new(set);
+    let vc = value.clone();
+    (
+        Event::new(move |t| {
+            if let Some(new_data) = vc.if_changed(|d| folder(t, d)) {
+                set_store.borrow_mut().set(new_data);
+            }
+        }),
+        value,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use crate::events::{cache, cache_clone, cache_hash, cond, filter, filter_map, map, Event};
