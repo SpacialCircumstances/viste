@@ -1,7 +1,7 @@
 use cursive::view::ViewWrapper;
 use cursive::views::{TextContent, TextView};
 use cursive::{Vec2, View};
-use viste_reactive::signals::Signal;
+use viste_reactive::old::signals::Signal;
 
 pub struct RTextView {
     view: TextView,

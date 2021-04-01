@@ -1,4 +1,4 @@
-use crate::signals::{Signal, World};
+use crate::old::signals::{Signal, World};
 use std::cell::{Cell, RefCell};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

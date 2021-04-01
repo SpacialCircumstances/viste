@@ -1,4 +1,4 @@
-use crate::graph::{Graph, NodeIndex, SearchContinuation};
+use crate::old::graph::{Graph, NodeIndex, SearchContinuation};
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
