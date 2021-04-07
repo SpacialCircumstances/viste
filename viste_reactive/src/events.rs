@@ -1,46 +1,60 @@
 use crate::Data;
+use slab::Slab;
+use std::cell::RefCell;
 use std::rc::{Rc, Weak};
-
-pub struct EventCore<T>(dyn Fn(&T) -> ());
 
 pub trait Listener<T: Data> {
     fn call(&self, data: &T);
 }
 
-pub struct EventListener<T: Data>(Weak<EventCore<T>>);
-
-impl<T: Data> EventListener<T> {
-    fn upgrade(&self) -> Event<T> {
-        Event(self.0.upgrade().expect("Failed to upgrade listener"))
-    }
-}
-
-impl<T: Data> Listener<T> for EventListener<T> {
-    fn call(&self, data: &T) {
-        self.upgrade().send(data);
-    }
-}
-
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ListenerToken(usize);
 
-pub struct Event<T: Data>(Rc<EventCore<T>>);
+pub trait Producer<T: Data> {
+    fn add_listener<I: Into<Box<dyn Listener<T>>>>(&self, listener: I) -> ListenerToken;
+    fn remove_listener(&self, listener: ListenerToken);
+}
 
-impl<T: Data> Event<T> {
-    fn to_listener(&self) -> EventListener<T> {
-        EventListener(Rc::downgrade(&self.0))
+pub struct Listeners<T: Data>(Slab<Box<dyn Listener<T>>>);
+
+impl<T: Data> Listeners<T> {
+    pub fn new() -> Self {
+        Self(Slab::new())
+    }
+
+    pub fn call_all(&self, data: &T) {
+        self.0.iter().for_each(|(_, l)| l.call(data));
+    }
+
+    pub fn add_listener(&mut self, listener: Box<dyn Listener<T>>) -> ListenerToken {
+        ListenerToken(self.0.insert(listener))
+    }
+
+    pub fn remove_listener(&mut self, listener: ListenerToken) {
+        self.0.remove(listener.0);
     }
 }
 
-impl<T: Data> Event<T> {
-    pub fn send(&self, value: &T) {
-        (self.0 .0)(value)
+pub struct Sender<T: Data>(Rc<RefCell<Listeners<T>>>);
+
+impl<T: Data> Sender<T> {
+    pub fn new() -> Self {
+        Self(Rc::new(RefCell::new(Listeners::new())))
+    }
+}
+
+impl<T: Data> Producer<T> for Sender<T> {
+    fn add_listener<I: Into<Box<dyn Listener<T>>>>(&self, listener: I) -> ListenerToken {
+        self.0.borrow_mut().add_listener(listener.into())
     }
 
-    pub fn add_listener<L: Listener<T>>(&self, listener: L) -> ListenerToken {
-        unimplemented!()
+    fn remove_listener(&self, listener: ListenerToken) {
+        self.0.borrow_mut().remove_listener(listener)
     }
+}
 
-    pub fn remove_listener(&self, listener: ListenerToken) {
-        unimplemented!()
+impl<T: Data> Listener<T> for Sender<T> {
+    fn call(&self, data: &T) {
+        self.0.borrow().call_all(data)
     }
 }
