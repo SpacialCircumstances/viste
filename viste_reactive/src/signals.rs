@@ -1,14 +1,5 @@
+use crate::Data;
 use std::rc::Rc;
-
-pub trait Data: Clone {
-    fn changed(&self, other: &Self) -> bool;
-}
-
-impl<T: Clone + PartialEq> Data for T {
-    fn changed(&self, other: &T) -> bool {
-        self != other
-    }
-}
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Epoch(usize);
