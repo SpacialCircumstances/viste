@@ -57,16 +57,16 @@ impl<T: Data> Producer<T> for Sender<T> {
     }
 }
 
-struct EventCore<I: Data, O: Data> {
-    compute: Box<dyn Fn(&I, &mut Listeners<O>)>,
+struct EventCore<'a, I: Data, O: Data> {
+    compute: Box<dyn Fn(&I, &mut Listeners<O>) + 'a>,
     listeners: RefCell<Listeners<O>>,
 }
 
-pub struct EventStream<I: Data, O: Data>(Rc<EventCore<I, O>>);
+pub struct EventStream<'a, I: Data, O: Data>(Rc<EventCore<'a, I, O>>);
 
-pub struct EventListener<I: Data, O: Data>(Weak<EventCore<I, O>>);
+pub struct EventListener<'a, I: Data, O: Data>(Weak<EventCore<'a, I, O>>);
 
-impl<I: Data, O: Data> Listener<I> for EventListener<I, O> {
+impl<'a, I: Data, O: Data> Listener<I> for EventListener<'a, I, O> {
     fn call(&self, data: &I) {
         let ev = self.0.upgrade().expect("Failed to get event core");
         let mut listeners = ev.listeners.borrow_mut();
@@ -74,13 +74,21 @@ impl<I: Data, O: Data> Listener<I> for EventListener<I, O> {
     }
 }
 
-impl<I: Data, O: Data> EventStream<I, O> {
-    pub fn listener(&self) -> EventListener<I, O> {
+impl<'a, I: Data, O: Data> EventStream<'a, I, O> {
+    pub fn new<C: Fn(&I, &mut Listeners<O>) + 'a>(compute: C) -> Self {
+        let core = EventCore {
+            compute: Box::new(compute),
+            listeners: RefCell::new(Listeners::new()),
+        };
+        EventStream(Rc::new(core))
+    }
+
+    pub fn listener(&self) -> EventListener<'a, I, O> {
         EventListener(Rc::downgrade(&self.0))
     }
 }
 
-impl<I: Data, O: Data> Producer<O> for EventStream<I, O> {
+impl<'a, I: Data, O: Data> Producer<O> for EventStream<'a, I, O> {
     fn add_listener<Il: Into<Box<dyn Listener<O>>>>(&self, listener: Il) -> ListenerToken {
         self.0.listeners.borrow_mut().add_listener(listener.into())
     }
