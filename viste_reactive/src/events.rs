@@ -11,7 +11,7 @@ pub trait Listener<T: Data> {
 pub struct ListenerToken(usize);
 
 pub trait Producer<T: Data> {
-    fn add_listener<I: Into<Box<dyn Listener<T>>>>(&self, listener: I) -> ListenerToken;
+    fn add_listener<Il: Into<Box<dyn Listener<T>>>>(&self, listener: Il) -> ListenerToken;
     fn remove_listener(&self, listener: ListenerToken);
 }
 
@@ -41,10 +41,14 @@ impl<T: Data> Sender<T> {
     pub fn new() -> Self {
         Self(Rc::new(RefCell::new(Listeners::new())))
     }
+
+    pub fn send(&self, data: &T) {
+        self.0.borrow().call_all(data)
+    }
 }
 
 impl<T: Data> Producer<T> for Sender<T> {
-    fn add_listener<I: Into<Box<dyn Listener<T>>>>(&self, listener: I) -> ListenerToken {
+    fn add_listener<Il: Into<Box<dyn Listener<T>>>>(&self, listener: Il) -> ListenerToken {
         self.0.borrow_mut().add_listener(listener.into())
     }
 
@@ -53,8 +57,27 @@ impl<T: Data> Producer<T> for Sender<T> {
     }
 }
 
-impl<T: Data> Listener<T> for Sender<T> {
-    fn call(&self, data: &T) {
-        self.0.borrow().call_all(data)
+struct EventCore<I: Data, O: Data> {
+    compute: Box<dyn Fn(&I, &mut Listeners<O>)>,
+    listeners: RefCell<Listeners<O>>,
+}
+
+pub struct EventStream<I: Data, O: Data>(Rc<EventCore<I, O>>);
+
+pub struct EventListener<I: Data, O: Data>(Weak<EventCore<I, O>>);
+
+impl<I: Data, O: Data> EventStream<I, O> {
+    pub fn to_listener(&self) -> EventListener<I, O> {
+        EventListener(Rc::downgrade(&self.0))
+    }
+}
+
+impl<I: Data, O: Data> Producer<O> for EventStream<I, O> {
+    fn add_listener<Il: Into<Box<dyn Listener<O>>>>(&self, listener: Il) -> ListenerToken {
+        self.0.listeners.borrow_mut().add_listener(listener.into())
+    }
+
+    fn remove_listener(&self, listener: ListenerToken) {
+        self.0.listeners.borrow_mut().remove_listener(listener)
     }
 }

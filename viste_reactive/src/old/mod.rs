@@ -1,3 +1,3 @@
 pub mod events;
-mod graph;
+pub mod graph;
 pub mod signals;
