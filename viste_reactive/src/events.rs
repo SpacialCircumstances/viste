@@ -66,8 +66,16 @@ pub struct EventStream<I: Data, O: Data>(Rc<EventCore<I, O>>);
 
 pub struct EventListener<I: Data, O: Data>(Weak<EventCore<I, O>>);
 
+impl<I: Data, O: Data> Listener<I> for EventListener<I, O> {
+    fn call(&self, data: &I) {
+        let ev = self.0.upgrade().expect("Failed to get event core");
+        let mut listeners = ev.listeners.borrow_mut();
+        (ev.compute)(data, &mut listeners)
+    }
+}
+
 impl<I: Data, O: Data> EventStream<I, O> {
-    pub fn to_listener(&self) -> EventListener<I, O> {
+    pub fn listener(&self) -> EventListener<I, O> {
         EventListener(Rc::downgrade(&self.0))
     }
 }
