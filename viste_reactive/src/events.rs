@@ -88,6 +88,12 @@ impl<'a, I: Data, O: Data> EventStream<'a, I, O> {
     }
 }
 
+impl<'a, I: Data, O: Data> Into<EventListener<'a, I, O>> for EventStream<'a, I, O> {
+    fn into(self) -> EventListener<'a, I, O> {
+        self.listener()
+    }
+}
+
 impl<'a, I: Data, O: Data> Producer<O> for EventStream<'a, I, O> {
     fn add_listener<Il: Into<Box<dyn Listener<O>>>>(&self, listener: Il) -> ListenerToken {
         self.0.listeners.borrow_mut().add_listener(listener.into())
