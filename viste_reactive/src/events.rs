@@ -1,6 +1,6 @@
 use crate::Data;
 use slab::Slab;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::rc::{Rc, Weak};
 
 pub trait Listener<T: Data> {
@@ -61,6 +61,31 @@ impl<T: Data> Producer<T> for Sender<T> {
 
     fn remove_listener(&self, listener: ListenerToken) {
         self.0.borrow_mut().remove_listener(listener)
+    }
+}
+
+pub struct Store<T: Data>(Rc<RefCell<T>>);
+
+impl<T: Data> Store<T> {
+    pub fn data(&self) -> Ref<T> {
+        self.0.borrow()
+    }
+
+    pub fn data_cloned(&self) -> T {
+        self.0.borrow().cheap_clone()
+    }
+}
+
+impl<T: Data> Clone for Store<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T: Data> Listener<T> for Store<T> {
+    fn call(&self, data: &T) {
+        let mut store = self.0.borrow_mut();
+        *store = data.cheap_clone()
     }
 }
 
