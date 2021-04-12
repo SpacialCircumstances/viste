@@ -11,9 +11,11 @@ pub trait Listener<T: Data> {
 pub struct ListenerToken(usize);
 
 pub trait Producer<T: Data> {
-    fn add_listener<Il: Into<Box<dyn Listener<T>>>>(&self, listener: Il) -> ListenerToken;
+    fn add_listener(&self, listener: Box<dyn Listener<T>>) -> ListenerToken;
     fn remove_listener(&self, listener: ListenerToken);
+}
 
+pub trait ProducerExt<T: Data>: Producer<T> {
     fn map<'a, O: Data, M: Fn(&T) -> O + 'a>(&self, mapper: M) -> EventStream<'a, T, O> {
         EventStream::new(move |d, listeners| {
             let new_data = mapper(d);
@@ -55,8 +57,8 @@ impl<T: Data> Sender<T> {
 }
 
 impl<T: Data> Producer<T> for Sender<T> {
-    fn add_listener<Il: Into<Box<dyn Listener<T>>>>(&self, listener: Il) -> ListenerToken {
-        self.0.borrow_mut().add_listener(listener.into())
+    fn add_listener(&self, listener: Box<dyn Listener<T>>) -> ListenerToken {
+        self.0.borrow_mut().add_listener(listener)
     }
 
     fn remove_listener(&self, listener: ListenerToken) {
@@ -133,8 +135,8 @@ impl<'a, I: Data, O: Data> Into<EventListener<'a, I, O>> for EventStream<'a, I, 
 }
 
 impl<'a, I: Data, O: Data> Producer<O> for EventStream<'a, I, O> {
-    fn add_listener<Il: Into<Box<dyn Listener<O>>>>(&self, listener: Il) -> ListenerToken {
-        self.0.listeners.borrow_mut().add_listener(listener.into())
+    fn add_listener(&self, listener: Box<dyn Listener<O>>) -> ListenerToken {
+        self.0.listeners.borrow_mut().add_listener(listener)
     }
 
     fn remove_listener(&self, listener: ListenerToken) {
