@@ -88,6 +88,12 @@ impl<'a, I: Data, O: Data> EventStream<'a, I, O> {
     }
 }
 
+impl<'a, I: Data, O: Data> Clone for EventStream<'a, I, O> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 impl<'a, I: Data, O: Data> Into<EventListener<'a, I, O>> for EventStream<'a, I, O> {
     fn into(self) -> EventListener<'a, I, O> {
         self.listener()
