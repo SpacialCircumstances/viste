@@ -13,6 +13,13 @@ pub struct ListenerToken(usize);
 pub trait Producer<T: Data> {
     fn add_listener<Il: Into<Box<dyn Listener<T>>>>(&self, listener: Il) -> ListenerToken;
     fn remove_listener(&self, listener: ListenerToken);
+
+    fn map<'a, O: Data, M: Fn(&T) -> O + 'a>(&self, mapper: M) -> EventStream<'a, T, O> {
+        EventStream::new(move |d, listeners| {
+            let new_data = mapper(d);
+            listeners.call_all(&new_data)
+        })
+    }
 }
 
 pub struct Listeners<T: Data>(Slab<Box<dyn Listener<T>>>);
