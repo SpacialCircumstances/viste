@@ -1,7 +1,7 @@
 use crate::old::graph::{Graph, NodeIndex, SearchContinuation};
 use crate::Data;
 use std::cell::{Ref, RefCell};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Generation(usize);
@@ -89,6 +89,22 @@ pub enum ComputationResult<T> {
     Unchanged,
 }
 
-pub trait Signal<T: Data> {
+pub trait RSignal<T: Data> {
     fn compute(&self, since: Generation) -> ComputationResult<T>;
+}
+
+pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
+
+impl<T: Data> Signal<T> {
+    pub fn compute(&self, since: Generation) {
+        self.0.borrow_mut().compute(since);
+    }
+}
+
+pub struct WeakSignal<T: Data>(Weak<RefCell<dyn RSignal<T>>>);
+
+impl<T: Data> WeakSignal<T> {
+    pub fn upgrade(&self) -> Option<Signal<T>> {
+        self.0.upgrade().map(|s| Signal(s))
+    }
 }
