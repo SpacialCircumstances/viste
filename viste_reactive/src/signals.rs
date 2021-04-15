@@ -139,21 +139,58 @@ impl<T: Data> Drop for ParentSignal<T> {
     }
 }
 
+pub struct OwnNode(World, NodeIndex);
+
+impl OwnNode {
+    pub fn new(world: World) -> Self {
+        let idx = world.create_node();
+        Self(world, idx)
+    }
+
+    pub fn world(&self) -> &World {
+        &self.0
+    }
+
+    pub fn node(&self) -> NodeIndex {
+        self.1
+    }
+
+    pub fn add_dependency(&self, to: NodeIndex) {
+        self.0.add_dependency(self.1, to)
+    }
+
+    pub fn remove_dependency(&self, to: NodeIndex) {
+        self.0.remove_dependency(self.1, to)
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.0.is_dirty(self.1)
+    }
+
+    pub fn clean(&self) {
+        self.0.unmark(self.1)
+    }
+}
+
+impl Drop for OwnNode {
+    fn drop(&mut self) {
+        self.0.destroy_node(self.1)
+    }
+}
+
 struct Mapper<I: Data, O: Data, M: Fn(I) -> O> {
     source: ParentSignal<I>,
     current_value: O,
     mapper: M,
-    world: World,
-    node: NodeIndex,
+    node: OwnNode,
 }
 
 impl<I: Data, O: Data, M: Fn(I) -> O> Mapper<I, O, M> {
     pub fn new(world: World, source: Signal<I>, mapper: M) -> Self {
         let current_value = mapper(source.compute());
-        let node = world.create_node();
+        let node = OwnNode::new(world);
         Mapper {
-            source: ParentSignal::new(source, node),
-            world,
+            source: ParentSignal::new(source, node.node()),
             mapper,
             current_value,
             node,
@@ -163,23 +200,18 @@ impl<I: Data, O: Data, M: Fn(I) -> O> Mapper<I, O, M> {
 
 impl<I: Data, O: Data, M: Fn(I) -> O> RSignal<O> for Mapper<I, O, M> {
     fn compute(&mut self) -> O {
-        if self.world.is_dirty(self.node) {
-            self.current_value = (self.mapper)(self.source.compute())
+        if self.node.is_dirty() {
+            self.current_value = (self.mapper)(self.source.compute());
+            self.node.clean();
         }
         self.current_value.cheap_clone()
     }
 
     fn add_dependency(&mut self, child: NodeIndex) {
-        self.world.add_dependency(self.node, child)
+        self.node.add_dependency(child)
     }
 
     fn remove_dependency(&mut self, child: NodeIndex) {
-        self.world.remove_dependency(self.node, child)
-    }
-}
-
-impl<I: Data, O: Data, M: Fn(I) -> O> Drop for Mapper<I, O, M> {
-    fn drop(&mut self) {
-        self.world.destroy_node(self.node)
+        self.node.remove_dependency(child)
     }
 }
