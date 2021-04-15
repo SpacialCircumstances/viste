@@ -3,18 +3,8 @@ use crate::Data;
 use std::cell::{Ref, RefCell};
 use std::rc::{Rc, Weak};
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub struct Generation(usize);
-
-impl Generation {
-    pub fn incr(&mut self) {
-        self.0 = self.0 + 1
-    }
-}
-
 struct WorldData {
     dependencies: Graph<bool>,
-    current_generation: Generation,
 }
 
 pub struct World(Rc<RefCell<WorldData>>);
@@ -23,12 +13,7 @@ impl World {
     pub fn new() -> Self {
         World(Rc::new(RefCell::new(WorldData {
             dependencies: Graph::new(),
-            current_generation: Generation(0),
         })))
-    }
-
-    pub fn advance(&self) {
-        self.0.borrow_mut().current_generation.incr()
     }
 
     pub fn mark_dirty(&self, node: NodeIndex) {
@@ -84,20 +69,15 @@ impl Clone for World {
     }
 }
 
-pub enum ComputationResult<T> {
-    Changed(T),
-    Unchanged,
-}
-
 pub trait RSignal<T: Data> {
-    fn compute(&self, since: Generation) -> ComputationResult<T>;
+    fn compute(&self) -> T;
 }
 
 pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
 
 impl<T: Data> Signal<T> {
-    pub fn compute(&self, since: Generation) {
-        self.0.borrow_mut().compute(since);
+    pub fn compute(&self) -> T {
+        self.0.borrow_mut().compute()
     }
 }
 
