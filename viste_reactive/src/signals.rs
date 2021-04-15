@@ -43,6 +43,10 @@ impl World {
         self.0.borrow_mut().dependencies[node] = false;
     }
 
+    pub fn create_node(&self) -> NodeIndex {
+        self.0.borrow_mut().dependencies.add_node(true)
+    }
+
     pub fn destroy_node(&self, node: NodeIndex) {
         self.0.borrow_mut().dependencies.remove_node(node);
     }
@@ -70,7 +74,7 @@ impl Clone for World {
 }
 
 pub trait RSignal<T: Data> {
-    fn compute(&self) -> T;
+    fn compute(&mut self) -> T;
 }
 
 pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
@@ -86,5 +90,22 @@ pub struct WeakSignal<T: Data>(Weak<RefCell<dyn RSignal<T>>>);
 impl<T: Data> WeakSignal<T> {
     pub fn upgrade(&self) -> Option<Signal<T>> {
         self.0.upgrade().map(|s| Signal(s))
+    }
+}
+
+struct Mapper<I: Data, O: Data, M: Fn(I) -> O> {
+    source: Signal<I>,
+    current_value: O,
+    mapper: M,
+    world: World,
+    node: NodeIndex,
+}
+
+impl<I: Data, O: Data, M: Fn(I) -> O> RSignal<O> for Mapper<I, O, M> {
+    fn compute(&mut self) -> O {
+        if self.world.is_dirty(self.node) {
+            self.current_value = (self.mapper)(self.source.compute())
+        }
+        self.current_value.cheap_clone()
     }
 }
