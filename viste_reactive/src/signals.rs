@@ -1,6 +1,7 @@
 use crate::old::graph::{Graph, NodeIndex, SearchContinuation};
 use crate::Data;
 use std::cell::{Ref, RefCell};
+use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 struct WorldData {
@@ -103,8 +104,43 @@ impl<T: Data> WeakSignal<T> {
     }
 }
 
+pub struct ParentSignal<T: Data> {
+    parent: Signal<T>,
+    own_index: NodeIndex,
+}
+
+impl<T: Data> ParentSignal<T> {
+    pub fn new(signal: Signal<T>, own_index: NodeIndex) -> Self {
+        signal.add_dependency(own_index);
+        Self {
+            parent: signal,
+            own_index,
+        }
+    }
+
+    pub fn set_parent(&mut self, signal: Signal<T>) {
+        self.parent.remove_dependency(self.own_index);
+        signal.add_dependency(self.own_index);
+        self.parent = signal;
+    }
+}
+
+impl<T: Data> Deref for ParentSignal<T> {
+    type Target = Signal<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.parent
+    }
+}
+
+impl<T: Data> Drop for ParentSignal<T> {
+    fn drop(&mut self) {
+        self.parent.remove_dependency(self.own_index)
+    }
+}
+
 struct Mapper<I: Data, O: Data, M: Fn(I) -> O> {
-    source: Signal<I>,
+    source: ParentSignal<I>,
     current_value: O,
     mapper: M,
     world: World,
@@ -116,7 +152,7 @@ impl<I: Data, O: Data, M: Fn(I) -> O> Mapper<I, O, M> {
         let current_value = mapper(source.compute());
         let node = world.create_node();
         Mapper {
-            source,
+            source: ParentSignal::new(source, node),
             world,
             mapper,
             current_value,
