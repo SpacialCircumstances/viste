@@ -75,6 +75,8 @@ impl Clone for World {
 
 pub trait RSignal<T: Data> {
     fn compute(&mut self) -> T;
+    fn add_dependency(&mut self, child: NodeIndex);
+    fn remove_dependency(&mut self, child: NodeIndex);
 }
 
 pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
@@ -82,6 +84,14 @@ pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
 impl<T: Data> Signal<T> {
     pub fn compute(&self) -> T {
         self.0.borrow_mut().compute()
+    }
+
+    pub fn add_dependency(&self, child: NodeIndex) {
+        self.0.borrow_mut().add_dependency(child)
+    }
+
+    pub fn remove_dependency(&self, child: NodeIndex) {
+        self.0.borrow_mut().remove_dependency(child)
     }
 }
 
@@ -101,11 +111,39 @@ struct Mapper<I: Data, O: Data, M: Fn(I) -> O> {
     node: NodeIndex,
 }
 
+impl<I: Data, O: Data, M: Fn(I) -> O> Mapper<I, O, M> {
+    pub fn new(world: World, source: Signal<I>, mapper: M) -> Self {
+        let current_value = mapper(source.compute());
+        let node = world.create_node();
+        Mapper {
+            source,
+            world,
+            mapper,
+            current_value,
+            node,
+        }
+    }
+}
+
 impl<I: Data, O: Data, M: Fn(I) -> O> RSignal<O> for Mapper<I, O, M> {
     fn compute(&mut self) -> O {
         if self.world.is_dirty(self.node) {
             self.current_value = (self.mapper)(self.source.compute())
         }
         self.current_value.cheap_clone()
+    }
+
+    fn add_dependency(&mut self, child: NodeIndex) {
+        self.world.add_dependency(self.node, child)
+    }
+
+    fn remove_dependency(&mut self, child: NodeIndex) {
+        self.world.remove_dependency(self.node, child)
+    }
+}
+
+impl<I: Data, O: Data, M: Fn(I) -> O> Drop for Mapper<I, O, M> {
+    fn drop(&mut self) {
+        self.world.destroy_node(self.node)
     }
 }
