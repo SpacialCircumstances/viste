@@ -1,145 +1,327 @@
+use crate::signals::{Signal, World};
 use crate::Data;
-use slab::Slab;
-use std::cell::{Ref, RefCell};
-use std::rc::{Rc, Weak};
+use std::cell::{Cell, RefCell};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::ops::DerefMut;
+use std::rc::Rc;
+use std::sync::mpsc::{SendError, Sender};
 
-pub trait Listener<T: Data> {
-    fn call(&self, data: &T);
-}
+pub struct Event<'a, T: 'a>(Box<dyn Fn(T) + 'a>);
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ListenerToken(usize);
+impl<'a, T: 'a> Event<'a, T> {
+    pub fn new<F: Fn(T) + 'a>(f: F) -> Self {
+        Self(Box::new(f))
+    }
 
-pub trait Producer<T: Data> {
-    fn add_listener(&self, listener: Box<dyn Listener<T>>) -> ListenerToken;
-    fn remove_listener(&self, listener: ListenerToken);
-}
+    pub fn push(&self, value: T) {
+        (self.0)(value)
+    }
 
-pub trait ProducerExt<T: Data>: Producer<T> {
-    fn map<'a, O: Data, M: Fn(&T) -> O + 'a>(&self, mapper: M) -> EventStream<'a, T, O> {
-        EventStream::new(move |d, listeners| {
-            let new_data = mapper(d);
-            listeners.call_all(&new_data)
+    pub fn dropping() -> Self {
+        Self::new(|_x| {})
+    }
+
+    pub fn cloneable(self) -> Rc<Self> {
+        Rc::new(self)
+    }
+
+    pub fn send(sender: Sender<T>, result: Event<'a, Result<(), SendError<T>>>) -> Self {
+        Event::new(move |t| {
+            result.push(sender.send(t));
         })
     }
-}
 
-pub struct Listeners<T: Data>(Slab<Box<dyn Listener<T>>>);
-
-impl<T: Data> Listeners<T> {
-    pub fn new() -> Self {
-        Self(Slab::new())
+    pub fn store(world: &World, initial: T) -> (Self, Signal<'a, T>)
+    where
+        T: Data,
+    {
+        let (mutator, node) = world.mutable(initial);
+        let mutator = RefCell::new(mutator);
+        let stream = Event::new(move |t| {
+            (mutator.borrow())(t);
+        });
+        (stream, node)
     }
 
-    pub fn call_all(&self, data: &T) {
-        self.0.iter().for_each(|(_, l)| l.call(data));
+    pub fn mapped<F: 'a, M: Fn(F) -> T + 'a>(self, mapper: M) -> Event<'a, F> {
+        map(mapper, self)
     }
 
-    pub fn add_listener(&mut self, listener: Box<dyn Listener<T>>) -> ListenerToken {
-        ListenerToken(self.0.insert(listener))
+    pub fn filtered<F: Fn(&T) -> bool + 'a>(self, f: F) -> Self {
+        filter(f, self)
     }
 
-    pub fn remove_listener(&mut self, listener: ListenerToken) {
-        self.0.remove(listener.0);
-    }
-}
-
-pub struct Sender<T: Data>(Rc<RefCell<Listeners<T>>>);
-
-impl<T: Data> Sender<T> {
-    pub fn new() -> Self {
-        Self(Rc::new(RefCell::new(Listeners::new())))
+    pub fn filter_mapped<U: 'a, F: Fn(U) -> Option<T> + 'a>(self, fm: F) -> Event<'a, U> {
+        filter_map(fm, self)
     }
 
-    pub fn send(&self, data: &T) {
-        self.0.borrow().call_all(data)
-    }
-}
-
-impl<T: Data> Producer<T> for Sender<T> {
-    fn add_listener(&self, listener: Box<dyn Listener<T>>) -> ListenerToken {
-        self.0.borrow_mut().add_listener(listener)
+    pub fn cached(self) -> Self
+    where
+        T: Copy + Eq,
+    {
+        cache(self)
     }
 
-    fn remove_listener(&self, listener: ListenerToken) {
-        self.0.borrow_mut().remove_listener(listener)
-    }
-}
-
-pub struct Store<T: Data>(Rc<RefCell<T>>);
-
-impl<T: Data> Store<T> {
-    pub fn data(&self) -> Ref<T> {
-        self.0.borrow()
+    pub fn cached_clone(self) -> Self
+    where
+        T: Clone + Eq,
+    {
+        cache_clone(self)
     }
 
-    pub fn data_cloned(&self) -> T {
-        self.0.borrow().cheap_clone()
+    pub fn cached_hash(self) -> Self
+    where
+        T: Hash,
+    {
+        cache_hash(self)
     }
 }
 
-impl<T: Data> Clone for Store<T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
+impl<'a, T: 'a> From<Rc<Event<'a, T>>> for Event<'a, T> {
+    fn from(l: Rc<Event<'a, T>>) -> Self {
+        Event::new(move |t| l.push(t))
     }
 }
 
-impl<T: Data> Listener<T> for Store<T> {
-    fn call(&self, data: &T) {
-        let mut store = self.0.borrow_mut();
-        *store = data.cheap_clone()
-    }
+pub fn map<'a, T: 'a, U: 'a, M: Fn(T) -> U + 'a, I: Into<Event<'a, U>>>(
+    mapper: M,
+    next: I,
+) -> Event<'a, T> {
+    let next = next.into();
+    Event::new(move |t| next.push(mapper(t)))
 }
 
-struct EventCore<'a, I: Data, O: Data> {
-    compute: Box<dyn Fn(&I, &mut Listeners<O>) + 'a>,
-    listeners: RefCell<Listeners<O>>,
+pub fn filter<'a, T: 'a, F: Fn(&T) -> bool + 'a, I: Into<Event<'a, T>>>(
+    filter: F,
+    next: I,
+) -> Event<'a, T> {
+    let next = next.into();
+    Event::new(move |t| {
+        if filter(&t) {
+            next.push(t);
+        }
+    })
 }
 
-pub struct EventStream<'a, I: Data, O: Data>(Rc<EventCore<'a, I, O>>);
-
-pub struct EventListener<'a, I: Data, O: Data>(Weak<EventCore<'a, I, O>>);
-
-impl<'a, I: Data, O: Data> Listener<I> for EventListener<'a, I, O> {
-    fn call(&self, data: &I) {
-        let ev = self.0.upgrade().expect("Failed to get event core");
-        let mut listeners = ev.listeners.borrow_mut();
-        (ev.compute)(data, &mut listeners)
-    }
+pub fn cache<'a, T: Copy + Eq + 'a, I: Into<Event<'a, T>>>(next: I) -> Event<'a, T> {
+    let cached: Cell<Option<T>> = Cell::new(None);
+    let next = next.into();
+    Event::new(move |t| match &cached.get() {
+        Some(old) if old == &t => (),
+        _ => {
+            cached.replace(Some(t));
+            next.push(t);
+        }
+    })
 }
 
-impl<'a, I: Data, O: Data> EventStream<'a, I, O> {
-    pub fn new<C: Fn(&I, &mut Listeners<O>) + 'a>(compute: C) -> Self {
-        let core = EventCore {
-            compute: Box::new(compute),
-            listeners: RefCell::new(Listeners::new()),
+pub fn cache_clone<'a, T: Clone + Eq + 'a, I: Into<Event<'a, T>>>(next: I) -> Event<'a, T> {
+    let cached: RefCell<Option<T>> = RefCell::new(None);
+    let next = next.into();
+    Event::new(move |t: T| {
+        match cached.borrow_mut().deref_mut() {
+            Some(old) if old == &t => (),
+            x => {
+                *x = Some(t.clone());
+                next.push(t);
+            }
         };
-        EventStream(Rc::new(core))
-    }
-
-    pub fn listener(&self) -> EventListener<'a, I, O> {
-        EventListener(Rc::downgrade(&self.0))
-    }
+    })
 }
 
-impl<'a, I: Data, O: Data> Clone for EventStream<'a, I, O> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
+pub fn cache_hash<'a, T: Hash + 'a, I: Into<Event<'a, T>>>(next: I) -> Event<'a, T> {
+    cache_by(
+        |t| {
+            let mut hasher = DefaultHasher::new();
+            t.hash(&mut hasher);
+            hasher.finish()
+        },
+        next,
+    )
 }
 
-impl<'a, I: Data, O: Data> Into<EventListener<'a, I, O>> for EventStream<'a, I, O> {
-    fn into(self) -> EventListener<'a, I, O> {
-        self.listener()
-    }
+pub fn cache_by<'a, T: 'a, X: Eq + Copy + 'a, C: Fn(&T) -> X + 'a, I: Into<Event<'a, T>>>(
+    cache_func: C,
+    next: I,
+) -> Event<'a, T> {
+    let next = next.into();
+    let cache = Cell::new(None);
+    Event::new(move |t| {
+        let new_cache_value = cache_func(&t);
+        match &cache.get() {
+            Some(old) if *old == new_cache_value => (),
+            _ => {
+                cache.replace(Some(new_cache_value));
+                next.push(t);
+            }
+        }
+    })
 }
 
-impl<'a, I: Data, O: Data> Producer<O> for EventStream<'a, I, O> {
-    fn add_listener(&self, listener: Box<dyn Listener<O>>) -> ListenerToken {
-        self.0.listeners.borrow_mut().add_listener(listener)
+pub fn filter_map<'a, T: 'a, U: 'a, F: Fn(T) -> Option<U> + 'a, I: Into<Event<'a, U>>>(
+    f: F,
+    next: I,
+) -> Event<'a, T> {
+    let next = next.into();
+    Event::new(move |t| match f(t) {
+        None => (),
+        Some(u) => next.push(u),
+    })
+}
+
+pub fn cond<'a, T: 'a, F: Fn(&T) -> bool + 'a, I1: Into<Event<'a, T>>, I2: Into<Event<'a, T>>>(
+    cond: F,
+    if_true: I1,
+    if_false: I2,
+) -> Event<'a, T> {
+    let if_true = if_true.into();
+    let if_false = if_false.into();
+    Event::new(move |t| match cond(&t) {
+        true => if_true.push(t),
+        false => if_false.push(t),
+    })
+}
+
+pub fn fold<'a, T: 'a, D: Data + 'a, F: Fn(T, &D) -> D + 'a>(
+    world: &World,
+    folder: F,
+    initial: D,
+) -> (Event<'a, T>, Signal<'a, D>) {
+    let (mut set, value) = world.mutable(initial);
+    let vc = value.clone();
+    let set_store = RefCell::new(set);
+    (
+        Event::new(move |t| {
+            let d = vc.compute();
+            let new_data = folder(t, &d);
+            (set_store.borrow())(new_data)
+        }),
+        value,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::events::{
+        cache, cache_clone, cache_hash, cond, filter, filter_map, fold, map, Event,
+    };
+    use crate::signals::World;
+    use std::cell::Cell;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_map() {
+        let world = World::new();
+        let (stream, res) = Event::store(&world, None);
+        let mapped = map(|x: &i32| Some(*x + 1), stream);
+        assert!(res.cloned_data().0.is_none());
+        mapped.push(&1);
+        assert_eq!(res.cloned_data().0, Some(2));
+        mapped.push(&3);
+        assert_eq!(res.cloned_data().0, Some(4));
     }
 
-    fn remove_listener(&self, listener: ListenerToken) {
-        self.0.listeners.borrow_mut().remove_listener(listener)
+    #[test]
+    fn test_filter() {
+        let world = World::new();
+        let (stream, res) = Event::store(&world, None);
+        let filtered = filter(|x| x % 2 == 0, map(|n| Some(n), stream));
+        assert!(res.cloned_data().0.is_none());
+        filtered.push(2);
+        assert_eq!(res.cloned_data().0, Some(2));
+        filtered.push(3);
+        assert_eq!(res.cloned_data().0, Some(2));
+    }
+
+    #[test]
+    fn test_filter_map() {
+        let world = World::new();
+        let (stream, res) = Event::store(&world, 0);
+        let f: Event<String> = filter_map(|x: String| i32::from_str(&x).ok(), stream);
+        f.push(String::from("19"));
+        assert_eq!(res.cloned_data().0, 19);
+        f.push(String::from("TEST"));
+        assert_eq!(res.cloned_data().0, 19);
+        f.push(String::from("13"));
+        assert_eq!(res.cloned_data().0, 13);
+    }
+
+    #[test]
+    fn test_cache() {
+        let counter = Cell::new(0);
+        let stream = Event::new(|_x| {
+            counter.set(counter.get() + 1);
+        });
+        let cached = cache(stream);
+        cached.push(&2);
+        assert_eq!(counter.get(), 1);
+        cached.push(&2);
+        assert_eq!(counter.get(), 1);
+        cached.push(&3);
+        assert_eq!(counter.get(), 2);
+        cached.push(&2);
+        assert_eq!(counter.get(), 3);
+    }
+
+    #[test]
+    fn test_cache_hash() {
+        let counter = Cell::new(0);
+        let stream = Event::new(|_x| {
+            counter.set(counter.get() + 1);
+        });
+        let cached = cache_hash(stream);
+        cached.push(&2);
+        assert_eq!(counter.get(), 1);
+        cached.push(&2);
+        assert_eq!(counter.get(), 1);
+        cached.push(&3);
+        assert_eq!(counter.get(), 2);
+        cached.push(&2);
+        assert_eq!(counter.get(), 3);
+    }
+
+    #[test]
+    fn test_cache_clone() {
+        let counter = Cell::new(0);
+        let stream = Event::new(|_x| {
+            counter.set(counter.get() + 1);
+        });
+        let cached = cache_clone(stream);
+        cached.push(&2);
+        assert_eq!(counter.get(), 1);
+        cached.push(&2);
+        assert_eq!(counter.get(), 1);
+        cached.push(&3);
+        assert_eq!(counter.get(), 2);
+        cached.push(&2);
+        assert_eq!(counter.get(), 3);
+    }
+
+    #[test]
+    fn test_cond() {
+        let world = World::new();
+        let (stream1, store1) = Event::store(&world, 0);
+        let (stream2, store2) = Event::store(&world, 0);
+        let cw = cond(|x| x % 2 == 0, stream1, stream2);
+        cw.push(1);
+        assert_eq!(store2.cloned_data().0, 1);
+        cw.push(2);
+        assert_eq!(store1.cloned_data().0, 2);
+        assert_eq!(store2.cloned_data().0, 1);
+        cw.push(0);
+        assert_eq!(store2.cloned_data().0, 1);
+        assert_eq!(store1.cloned_data().0, 0);
+    }
+
+    #[test]
+    fn test_fold() {
+        let world = World::new();
+        let (folder, store) = fold(&world, |a, b| a + *b, 0);
+        assert_eq!(store.cloned_data().0, 0);
+        folder.push(2);
+        assert_eq!(store.cloned_data().0, 2);
+        folder.push(2);
+        assert_eq!(store.cloned_data().0, 4);
     }
 }

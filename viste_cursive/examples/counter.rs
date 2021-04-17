@@ -1,6 +1,6 @@
 use cursive::views::Dialog;
 use viste_cursive::RTextView;
-use viste_reactive::old::events::{fold, Event};
+use viste_reactive::events::{fold, Event};
 use viste_reactive::old::signals::World;
 
 #[derive(Copy, Clone, Debug)]
