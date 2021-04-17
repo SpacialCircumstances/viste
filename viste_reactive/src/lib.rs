@@ -3,12 +3,12 @@ mod graph;
 pub mod old;
 pub mod signals;
 
-pub trait Data {
+pub trait Data: 'static {
     fn changed(&self, other: &Self) -> bool;
     fn cheap_clone(&self) -> Self;
 }
 
-impl<T: Copy + PartialEq> Data for T {
+impl<T: Copy + PartialEq + 'static> Data for T {
     fn changed(&self, other: &T) -> bool {
         self != other
     }

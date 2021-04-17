@@ -90,6 +90,7 @@ pub trait RSignal<T: Data> {
     fn compute(&mut self) -> T;
     fn add_dependency(&mut self, child: NodeIndex);
     fn remove_dependency(&mut self, child: NodeIndex);
+    fn world(&self) -> &World;
 }
 
 pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
@@ -97,6 +98,10 @@ pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
 impl<T: Data> Signal<T> {
     pub fn create<S: RSignal<T> + 'static>(r: S) -> Self {
         Self(Rc::new(RefCell::new(r)))
+    }
+
+    pub fn world(&self) -> World {
+        self.0.borrow().world().clone()
     }
 
     pub fn compute(&self) -> T {
@@ -109,6 +114,16 @@ impl<T: Data> Signal<T> {
 
     pub fn remove_dependency(&self, child: NodeIndex) {
         self.0.borrow_mut().remove_dependency(child)
+    }
+
+    pub fn map<R: Data, M: Fn(T) -> R + 'static>(&self, mapper: M) -> Signal<R> {
+        Signal::create(Mapper::new(self.world(), self.clone(), mapper))
+    }
+}
+
+impl<T: Data> Clone for Signal<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
@@ -234,6 +249,10 @@ impl<I: Data, O: Data, M: Fn(I) -> O> RSignal<O> for Mapper<I, O, M> {
     fn remove_dependency(&mut self, child: NodeIndex) {
         self.node.remove_dependency(child)
     }
+
+    fn world(&self) -> &World {
+        self.node.world()
+    }
 }
 
 struct Filter<T: Data, F: Fn(&T) -> bool> {
@@ -274,6 +293,10 @@ impl<T: Data, F: Fn(&T) -> bool> RSignal<T> for Filter<T, F> {
 
     fn remove_dependency(&mut self, child: NodeIndex) {
         self.node.remove_dependency(child)
+    }
+
+    fn world(&self) -> &World {
+        self.node.world()
     }
 }
 
@@ -317,6 +340,10 @@ impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> RSignal<O> for Binder<I, O, B> {
 
     fn remove_dependency(&mut self, child: NodeIndex) {
         self.node.remove_dependency(child)
+    }
+
+    fn world(&self) -> &World {
+        self.node.world()
     }
 }
 
@@ -366,6 +393,10 @@ impl<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> RSignal<O> for Mapper2<I
     fn remove_dependency(&mut self, child: NodeIndex) {
         self.node.remove_dependency(child)
     }
+
+    fn world(&self) -> &World {
+        self.node.world()
+    }
 }
 
 struct Mutable<T: Data> {
@@ -400,6 +431,10 @@ impl<T: Data> RSignal<T> for Mutable<T> {
     fn remove_dependency(&mut self, child: NodeIndex) {
         self.node.add_dependency(child)
     }
+
+    fn world(&self) -> &World {
+        self.node.world()
+    }
 }
 
 struct Constant<T: Data> {
@@ -424,4 +459,8 @@ impl<T: Data> RSignal<T> for Constant<T> {
     fn add_dependency(&mut self, child: NodeIndex) {}
 
     fn remove_dependency(&mut self, child: NodeIndex) {}
+
+    fn world(&self) -> &World {
+        self.node.world()
+    }
 }
