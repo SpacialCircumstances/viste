@@ -1,7 +1,8 @@
 use cursive::views::Dialog;
+use std::rc::Rc;
 use viste_cursive::RTextView;
 use viste_reactive::events::{fold, Event};
-use viste_reactive::old::signals::World;
+use viste_reactive::signals::World;
 
 #[derive(Copy, Clone, Debug)]
 enum Msg {
@@ -19,7 +20,7 @@ fn main() {
         },
         0,
     );
-    let current_text = counter.map(|c| format!("{}", c));
+    let current_text = counter.map(|c| Rc::new(format!("{}", c)));
 
     let mut siv = cursive::default();
     siv.set_user_data(dispatch);
