@@ -21,7 +21,7 @@ impl<I: Data, O: Data, M: Fn(I) -> O> Mapper<I, O, M> {
     }
 }
 
-impl<I: Data, O: Data, M: Fn(I) -> O> RSignal<O> for Mapper<I, O, M> {
+impl<I: Data, O: Data, M: Fn(I) -> O> SignalCore<O> for Mapper<I, O, M> {
     fn compute(&mut self) -> O {
         if self.node.is_dirty() {
             self.current_value = (self.mapper)(self.source.compute());
@@ -67,7 +67,7 @@ impl<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> Mapper2<I1, I2, O, M> {
     }
 }
 
-impl<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> RSignal<O> for Mapper2<I1, I2, O, M> {
+impl<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> SignalCore<O> for Mapper2<I1, I2, O, M> {
     fn compute(&mut self) -> O {
         if self.node.is_dirty() {
             self.node.clean();

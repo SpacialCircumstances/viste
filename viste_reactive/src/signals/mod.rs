@@ -97,17 +97,17 @@ impl Clone for World {
     }
 }
 
-pub trait RSignal<T: Data> {
+pub trait SignalCore<T: Data> {
     fn compute(&mut self) -> T;
     fn add_dependency(&mut self, child: NodeIndex);
     fn remove_dependency(&mut self, child: NodeIndex);
     fn world(&self) -> &World;
 }
 
-pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
+pub struct Signal<T: Data>(Rc<RefCell<dyn SignalCore<T>>>);
 
 impl<T: Data> Signal<T> {
-    pub fn create<S: RSignal<T> + 'static>(r: S) -> Self {
+    pub fn create<S: SignalCore<T> + 'static>(r: S) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
 
@@ -154,7 +154,7 @@ impl<T: Data> Clone for Signal<T> {
     }
 }
 
-pub struct WeakSignal<T: Data>(Weak<RefCell<dyn RSignal<T>>>);
+pub struct WeakSignal<T: Data>(Weak<RefCell<dyn SignalCore<T>>>);
 
 impl<T: Data> WeakSignal<T> {
     pub fn upgrade(&self) -> Option<Signal<T>> {

@@ -21,7 +21,7 @@ impl<T: Data> Mutable<T> {
     }
 }
 
-impl<T: Data> RSignal<T> for Mutable<T> {
+impl<T: Data> SignalCore<T> for Mutable<T> {
     fn compute(&mut self) -> T {
         self.current_value.cheap_clone()
     }

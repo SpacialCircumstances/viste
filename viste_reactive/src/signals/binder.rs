@@ -23,7 +23,7 @@ impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> Binder<I, O, B> {
     }
 }
 
-impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> RSignal<O> for Binder<I, O, B> {
+impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> SignalCore<O> for Binder<I, O, B> {
     fn compute(&mut self) -> O {
         if self.node.is_dirty() {
             self.node.clean();

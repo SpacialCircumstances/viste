@@ -15,7 +15,7 @@ impl<T: Data> Constant<T> {
     }
 }
 
-impl<T: Data> RSignal<T> for Constant<T> {
+impl<T: Data> SignalCore<T> for Constant<T> {
     fn compute(&mut self) -> T {
         self.value.cheap_clone()
     }
