@@ -1,15 +1,15 @@
 use crate::signals::*;
 use crate::Data;
 
-pub struct Mapper<I: Data, O: Data, M: Fn(I) -> O> {
-    source: ParentSignal<I>,
+pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
+    source: ParentSignal<'a, I>,
     current_value: O,
     mapper: M,
     node: OwnNode,
 }
 
-impl<I: Data, O: Data, M: Fn(I) -> O> Mapper<I, O, M> {
-    pub fn new(world: World, source: Signal<I>, mapper: M) -> Self {
+impl<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
+    pub fn new(world: World, source: Signal<'a, I>, mapper: M) -> Self {
         let current_value = mapper(source.compute());
         let node = OwnNode::new(world);
         Mapper {
@@ -21,7 +21,7 @@ impl<I: Data, O: Data, M: Fn(I) -> O> Mapper<I, O, M> {
     }
 }
 
-impl<I: Data, O: Data, M: Fn(I) -> O> SignalCore<O> for Mapper<I, O, M> {
+impl<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> SignalCore<O> for Mapper<'a, I, O, M> {
     fn compute(&mut self) -> O {
         if self.node.is_dirty() {
             self.current_value = (self.mapper)(self.source.compute());
@@ -43,16 +43,16 @@ impl<I: Data, O: Data, M: Fn(I) -> O> SignalCore<O> for Mapper<I, O, M> {
     }
 }
 
-pub struct Mapper2<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> {
-    source1: ParentSignal<I1>,
-    source2: ParentSignal<I2>,
+pub struct Mapper2<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> {
+    source1: ParentSignal<'a, I1>,
+    source2: ParentSignal<'a, I2>,
     current_value: O,
     mapper: M,
     node: OwnNode,
 }
 
-impl<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> Mapper2<I1, I2, O, M> {
-    pub fn new(world: World, source1: Signal<I1>, source2: Signal<I2>, mapper: M) -> Self {
+impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> Mapper2<'a, I1, I2, O, M> {
+    pub fn new(world: World, source1: Signal<'a, I1>, source2: Signal<'a, I2>, mapper: M) -> Self {
         let node = OwnNode::new(world);
         let initial_value = mapper(&source1.compute(), &source2.compute());
         let source1 = ParentSignal::new(source1, node.node());
@@ -67,7 +67,9 @@ impl<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> Mapper2<I1, I2, O, M> {
     }
 }
 
-impl<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> SignalCore<O> for Mapper2<I1, I2, O, M> {
+impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> SignalCore<O>
+    for Mapper2<'a, I1, I2, O, M>
+{
     fn compute(&mut self) -> O {
         if self.node.is_dirty() {
             self.node.clean();

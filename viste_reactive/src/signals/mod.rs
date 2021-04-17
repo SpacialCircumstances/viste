@@ -72,7 +72,7 @@ impl World {
         wd.dependencies.remove_edge(parent, child);
     }
 
-    pub fn mutable<T: Data + 'static>(&self, initial: T) -> (impl Fn(T), Signal<T>) {
+    pub fn mutable<'a, T: Data + 'a>(&self, initial: T) -> (impl Fn(T), Signal<'a, T>) {
         let m = Mutable::new(self.clone(), initial);
         let signal = Rc::new(RefCell::new(m));
         let s = signal.clone();
@@ -80,7 +80,7 @@ impl World {
         (mutator, Signal(signal))
     }
 
-    pub fn constant<T: Data + 'static>(&self, value: T) -> Signal<T> {
+    pub fn constant<'a, T: Data + 'a>(&self, value: T) -> Signal<'a, T> {
         Signal::create(Constant::new(self.clone(), value))
     }
 }
@@ -104,10 +104,10 @@ pub trait SignalCore<T: Data> {
     fn world(&self) -> &World;
 }
 
-pub struct Signal<T: Data>(Rc<RefCell<dyn SignalCore<T>>>);
+pub struct Signal<'a, T: Data>(Rc<RefCell<dyn SignalCore<T> + 'a>>);
 
-impl<T: Data> Signal<T> {
-    pub fn create<S: SignalCore<T> + 'static>(r: S) -> Self {
+impl<'a, T: Data> Signal<'a, T> {
+    pub fn create<S: SignalCore<T> + 'a>(r: S) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
 
@@ -127,48 +127,40 @@ impl<T: Data> Signal<T> {
         self.0.borrow_mut().remove_dependency(child)
     }
 
-    pub fn map<R: Data, M: Fn(T) -> R + 'static>(&self, mapper: M) -> Signal<R> {
+    pub fn map<R: Data, M: Fn(T) -> R + 'a>(&self, mapper: M) -> Signal<'a, R> {
         Signal::create(Mapper::new(self.world(), self.clone(), mapper))
     }
 
-    pub fn filter<F: Fn(&T) -> bool + 'static>(self, filter: F, initial: T) -> Signal<T> {
+    pub fn filter<F: Fn(&T) -> bool + 'a>(self, filter: F, initial: T) -> Signal<'a, T> {
         Signal::create(Filter::new(self.world(), self.clone(), initial, filter))
     }
 
-    pub fn bind<O: Data, B: Fn(&T) -> Signal<O> + 'static>(&self, binder: B) -> Signal<O> {
+    pub fn bind<O: Data, B: Fn(&T) -> Signal<'a, O> + 'a>(&self, binder: B) -> Signal<'a, O> {
         Signal::create(Binder::new(self.world(), self.clone(), binder))
     }
 }
 
-pub fn map2<T1: Data, T2: Data, O: Data, M: Fn(&T1, &T2) -> O + 'static>(
-    s1: Signal<T1>,
-    s2: Signal<T2>,
+pub fn map2<'a, T1: Data, T2: Data, O: Data, M: Fn(&T1, &T2) -> O + 'a>(
+    s1: Signal<'a, T1>,
+    s2: Signal<'a, T2>,
     mapper: M,
-) -> Signal<O> {
+) -> Signal<'a, O> {
     Signal::create(Mapper2::new(s1.world(), s1, s2, mapper))
 }
 
-impl<T: Data> Clone for Signal<T> {
+impl<'a, T: Data> Clone for Signal<'a, T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-pub struct WeakSignal<T: Data>(Weak<RefCell<dyn SignalCore<T>>>);
-
-impl<T: Data> WeakSignal<T> {
-    pub fn upgrade(&self) -> Option<Signal<T>> {
-        self.0.upgrade().map(|s| Signal(s))
-    }
-}
-
-pub struct ParentSignal<T: Data> {
-    parent: Signal<T>,
+pub struct ParentSignal<'a, T: Data> {
+    parent: Signal<'a, T>,
     own_index: NodeIndex,
 }
 
-impl<T: Data> ParentSignal<T> {
-    pub fn new(signal: Signal<T>, own_index: NodeIndex) -> Self {
+impl<'a, T: Data> ParentSignal<'a, T> {
+    pub fn new(signal: Signal<'a, T>, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
         Self {
             parent: signal,
@@ -176,22 +168,22 @@ impl<T: Data> ParentSignal<T> {
         }
     }
 
-    pub fn set_parent(&mut self, signal: Signal<T>) {
+    pub fn set_parent(&mut self, signal: Signal<'a, T>) {
         self.parent.remove_dependency(self.own_index);
         signal.add_dependency(self.own_index);
         self.parent = signal;
     }
 }
 
-impl<T: Data> Deref for ParentSignal<T> {
-    type Target = Signal<T>;
+impl<'a, T: Data> Deref for ParentSignal<'a, T> {
+    type Target = Signal<'a, T>;
 
     fn deref(&self) -> &Self::Target {
         &self.parent
     }
 }
 
-impl<T: Data> Drop for ParentSignal<T> {
+impl<'a, T: Data> Drop for ParentSignal<'a, T> {
     fn drop(&mut self) {
         self.parent.remove_dependency(self.own_index)
     }

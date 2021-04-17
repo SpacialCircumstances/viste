@@ -1,15 +1,15 @@
 use crate::signals::*;
 use crate::Data;
 
-pub struct Filter<T: Data, F: Fn(&T) -> bool> {
-    source: ParentSignal<T>,
+pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
+    source: ParentSignal<'a, T>,
     current_value: T,
     filter: F,
     node: OwnNode,
 }
 
-impl<T: Data, F: Fn(&T) -> bool> Filter<T, F> {
-    pub fn new(world: World, parent: Signal<T>, initial: T, filter: F) -> Self {
+impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
+    pub fn new(world: World, parent: Signal<'a, T>, initial: T, filter: F) -> Self {
         let node = OwnNode::new(world);
         let source = ParentSignal::new(parent, node.node());
         Self {
@@ -21,7 +21,7 @@ impl<T: Data, F: Fn(&T) -> bool> Filter<T, F> {
     }
 }
 
-impl<T: Data, F: Fn(&T) -> bool> SignalCore<T> for Filter<T, F> {
+impl<'a, T: Data, F: Fn(&T) -> bool + 'a> SignalCore<T> for Filter<'a, T, F> {
     fn compute(&mut self) -> T {
         if self.node.is_dirty() {
             self.node.clean();

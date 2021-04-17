@@ -1,15 +1,15 @@
 use crate::signals::*;
 use crate::Data;
 
-pub struct Binder<I: Data, O: Data, B: Fn(&I) -> Signal<O>> {
+pub struct Binder<'a, I: Data, O: Data, B: Fn(&I) -> Signal<'a, O> + 'a> {
     binder: B,
-    current_signal: Signal<O>,
+    current_signal: Signal<'a, O>,
     node: OwnNode,
-    parent: ParentSignal<I>,
+    parent: ParentSignal<'a, I>,
 }
 
-impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> Binder<I, O, B> {
-    pub fn new(world: World, parent: Signal<I>, binder: B) -> Self {
+impl<'a, I: Data, O: Data, B: Fn(&I) -> Signal<'a, O> + 'a> Binder<'a, I, O, B> {
+    pub fn new(world: World, parent: Signal<'a, I>, binder: B) -> Self {
         let initial_signal = binder(&parent.compute());
         let node = OwnNode::new(world);
         initial_signal.add_dependency(node.node());
@@ -23,7 +23,7 @@ impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> Binder<I, O, B> {
     }
 }
 
-impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> SignalCore<O> for Binder<I, O, B> {
+impl<'a, I: Data, O: Data, B: Fn(&I) -> Signal<'a, O> + 'a> SignalCore<O> for Binder<'a, I, O, B> {
     fn compute(&mut self) -> O {
         if self.node.is_dirty() {
             self.node.clean();
@@ -48,7 +48,7 @@ impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> SignalCore<O> for Binder<I, O, B>
     }
 }
 
-impl<I: Data, O: Data, B: Fn(&I) -> Signal<O>> Drop for Binder<I, O, B> {
+impl<'a, I: Data, O: Data, B: Fn(&I) -> Signal<'a, O> + 'a> Drop for Binder<'a, I, O, B> {
     fn drop(&mut self) {
         self.current_signal.remove_dependency(self.node.node())
     }
