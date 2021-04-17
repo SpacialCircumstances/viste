@@ -21,7 +21,7 @@ impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
     }
 }
 
-impl<'a, T: Data, F: Fn(&T) -> bool + 'a> SignalCore<T> for Filter<'a, T, F> {
+impl<'a, T: Data + 'a, F: Fn(&T) -> bool + 'a> SignalCore<T> for Filter<'a, T, F> {
     fn compute(&mut self) -> T {
         if self.node.is_dirty() {
             self.node.clean();

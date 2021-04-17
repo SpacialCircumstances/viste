@@ -106,7 +106,7 @@ pub trait SignalCore<T: Data> {
 
 pub struct Signal<'a, T: Data>(Rc<RefCell<dyn SignalCore<T> + 'a>>);
 
-impl<'a, T: Data> Signal<'a, T> {
+impl<'a, T: Data + 'a> Signal<'a, T> {
     pub fn create<S: SignalCore<T> + 'a>(r: S) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
@@ -127,7 +127,7 @@ impl<'a, T: Data> Signal<'a, T> {
         self.0.borrow_mut().remove_dependency(child)
     }
 
-    pub fn map<R: Data, M: Fn(T) -> R + 'a>(&self, mapper: M) -> Signal<'a, R> {
+    pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> Signal<'a, R> {
         Signal::create(Mapper::new(self.world(), self.clone(), mapper))
     }
 
@@ -135,12 +135,12 @@ impl<'a, T: Data> Signal<'a, T> {
         Signal::create(Filter::new(self.world(), self.clone(), initial, filter))
     }
 
-    pub fn bind<O: Data, B: Fn(&T) -> Signal<'a, O> + 'a>(&self, binder: B) -> Signal<'a, O> {
+    pub fn bind<O: Data + 'a, B: Fn(&T) -> Signal<'a, O> + 'a>(&self, binder: B) -> Signal<'a, O> {
         Signal::create(Binder::new(self.world(), self.clone(), binder))
     }
 }
 
-pub fn map2<'a, T1: Data, T2: Data, O: Data, M: Fn(&T1, &T2) -> O + 'a>(
+pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(&T1, &T2) -> O + 'a>(
     s1: Signal<'a, T1>,
     s2: Signal<'a, T2>,
     mapper: M,
@@ -154,12 +154,12 @@ impl<'a, T: Data> Clone for Signal<'a, T> {
     }
 }
 
-pub struct ParentSignal<'a, T: Data> {
+pub struct ParentSignal<'a, T: Data + 'a> {
     parent: Signal<'a, T>,
     own_index: NodeIndex,
 }
 
-impl<'a, T: Data> ParentSignal<'a, T> {
+impl<'a, T: Data + 'a> ParentSignal<'a, T> {
     pub fn new(signal: Signal<'a, T>, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
         Self {
@@ -175,7 +175,7 @@ impl<'a, T: Data> ParentSignal<'a, T> {
     }
 }
 
-impl<'a, T: Data> Deref for ParentSignal<'a, T> {
+impl<'a, T: Data + 'a> Deref for ParentSignal<'a, T> {
     type Target = Signal<'a, T>;
 
     fn deref(&self) -> &Self::Target {
@@ -183,7 +183,7 @@ impl<'a, T: Data> Deref for ParentSignal<'a, T> {
     }
 }
 
-impl<'a, T: Data> Drop for ParentSignal<'a, T> {
+impl<'a, T: Data + 'a> Drop for ParentSignal<'a, T> {
     fn drop(&mut self) {
         self.parent.remove_dependency(self.own_index)
     }
