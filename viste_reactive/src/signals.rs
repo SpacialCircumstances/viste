@@ -170,6 +170,10 @@ impl OwnNode {
     pub fn clean(&self) {
         self.0.unmark(self.1)
     }
+
+    pub fn mark_dirty(&self) {
+        self.0.mark_dirty(self.1)
+    }
 }
 
 impl Drop for OwnNode {
@@ -346,4 +350,62 @@ impl<I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O> RSignal<O> for Mapper2<I
     fn remove_dependency(&mut self, child: NodeIndex) {
         self.node.remove_dependency(child)
     }
+}
+
+struct Mutable<T: Data> {
+    current_value: T,
+    node: OwnNode,
+}
+
+impl<T: Data> Mutable<T> {
+    pub fn new(world: World, initial: T) -> Self {
+        let node = OwnNode::new(world);
+        Self {
+            current_value: initial,
+            node,
+        }
+    }
+
+    pub fn set(&mut self, value: T) {
+        self.current_value = value;
+        self.node.mark_dirty();
+    }
+}
+
+impl<T: Data> RSignal<T> for Mutable<T> {
+    fn compute(&mut self) -> T {
+        self.current_value.cheap_clone()
+    }
+
+    fn add_dependency(&mut self, child: NodeIndex) {
+        self.node.add_dependency(child)
+    }
+
+    fn remove_dependency(&mut self, child: NodeIndex) {
+        self.node.add_dependency(child)
+    }
+}
+
+struct Constant<T: Data> {
+    node: OwnNode,
+    value: T,
+}
+
+impl<T: Data> Constant<T> {
+    pub fn new(world: World, value: T) -> Self {
+        Self {
+            node: OwnNode::new(world),
+            value,
+        }
+    }
+}
+
+impl<T: Data> RSignal<T> for Constant<T> {
+    fn compute(&mut self) -> T {
+        self.value.cheap_clone()
+    }
+
+    fn add_dependency(&mut self, child: NodeIndex) {}
+
+    fn remove_dependency(&mut self, child: NodeIndex) {}
 }
