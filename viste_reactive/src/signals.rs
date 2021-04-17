@@ -60,6 +60,18 @@ impl World {
         let mut wd = self.0.borrow_mut();
         wd.dependencies.remove_edge(parent, child);
     }
+
+    pub fn mutable<T: Data + 'static>(&self, initial: T) -> (impl Fn(T), Signal<T>) {
+        let m = Mutable::new(self.clone(), initial);
+        let signal = Rc::new(RefCell::new(m));
+        let s = signal.clone();
+        let mutator = move |v| s.borrow_mut().set(v);
+        (mutator, Signal(signal))
+    }
+
+    pub fn constant<T: Data + 'static>(&self, value: T) -> Signal<T> {
+        Signal::create(Constant::new(self.clone(), value))
+    }
 }
 
 impl Default for World {
@@ -83,6 +95,10 @@ pub trait RSignal<T: Data> {
 pub struct Signal<T: Data>(Rc<RefCell<dyn RSignal<T>>>);
 
 impl<T: Data> Signal<T> {
+    pub fn create<S: RSignal<T> + 'static>(r: S) -> Self {
+        Self(Rc::new(RefCell::new(r)))
+    }
+
     pub fn compute(&self) -> T {
         self.0.borrow_mut().compute()
     }
