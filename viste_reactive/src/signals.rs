@@ -119,6 +119,22 @@ impl<T: Data> Signal<T> {
     pub fn map<R: Data, M: Fn(T) -> R + 'static>(&self, mapper: M) -> Signal<R> {
         Signal::create(Mapper::new(self.world(), self.clone(), mapper))
     }
+
+    pub fn filter<F: Fn(&T) -> bool + 'static>(self, filter: F, initial: T) -> Signal<T> {
+        Signal::create(Filter::new(self.world(), self.clone(), initial, filter))
+    }
+
+    pub fn bind<O: Data, B: Fn(&T) -> Signal<O> + 'static>(&self, binder: B) -> Signal<O> {
+        Signal::create(Binder::new(self.world(), self.clone(), binder))
+    }
+}
+
+pub fn map2<T1: Data, T2: Data, O: Data, M: Fn(&T1, &T2) -> O + 'static>(
+    s1: Signal<T1>,
+    s2: Signal<T2>,
+    mapper: M,
+) -> Signal<O> {
+    Signal::create(Mapper2::new(s1.world(), s1, s2, mapper))
 }
 
 impl<T: Data> Clone for Signal<T> {
