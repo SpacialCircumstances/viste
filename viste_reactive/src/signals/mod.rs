@@ -362,4 +362,40 @@ mod tests {
         set(0);
         assert_eq!(0, read_once(&filtered));
     }
+
+    #[test]
+    fn test_bind() {
+        let world = World::new();
+        let c = world.constant(2);
+        let (set, v) = world.mutable(0);
+        let bound = v.bind(move |x| {
+            let x = *x;
+            c.map(move |v| v + x)
+        });
+        assert_eq!(2, read_once(&bound));
+        set(2);
+        assert_eq!(4, read_once(&bound));
+        set(3);
+        assert_eq!(5, read_once(&bound));
+    }
+
+    #[test]
+    fn test_bind2() {
+        let world = World::new();
+        let (set1, v1) = world.mutable(1);
+        let (set2, v2) = world.mutable(2);
+        let (switch, switcher) = world.mutable(false);
+        let b = switcher.bind(move |b| if *b { v1.clone() } else { v2.clone() });
+        assert_eq!(2, read_once(&b));
+        switch(true);
+        assert_eq!(1, read_once(&b));
+        set1(4);
+        assert_eq!(4, read_once(&b));
+        set2(6);
+        assert_eq!(4, read_once(&b));
+        switch(false);
+        assert_eq!(6, read_once(&b));
+        switch(true);
+        assert_eq!(4, read_once(&b));
+    }
 }
