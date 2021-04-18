@@ -188,7 +188,7 @@ pub fn fold<'a, T: 'a, D: Data + 'a, F: Fn(T, &D) -> D + 'a>(
     folder: F,
     initial: D,
 ) -> (Event<'a, T>, Signal<'a, D>) {
-    let (mut set, value) = world.mutable(initial);
+    let (set, value) = world.mutable(initial);
     let vc = value.clone();
     let set_store = RefCell::new(set);
     (

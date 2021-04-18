@@ -5,9 +5,9 @@ use crate::signals::filter::Filter;
 use crate::signals::mapper::{Mapper, Mapper2};
 use crate::signals::mutable::Mutable;
 use crate::Data;
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::ops::Deref;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 mod binder;
 mod constant;

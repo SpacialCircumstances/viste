@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 pub mod events;
 mod graph;
 pub mod signals;
