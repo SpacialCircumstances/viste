@@ -7,6 +7,7 @@ use crate::signals::mutable::Mutable;
 use crate::Data;
 use slab::Slab;
 use std::cell::RefCell;
+use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -107,6 +108,7 @@ pub trait SignalCore<T: Data> {
     fn destroy_reader(&mut self, reader: ReaderToken);
     fn add_dependency(&mut self, child: NodeIndex);
     fn remove_dependency(&mut self, child: NodeIndex);
+    fn is_dirty(&self) -> bool;
     fn world(&self) -> &World;
 }
 
@@ -141,6 +143,10 @@ impl<'a, T: Data + 'a> Signal<'a, T> {
         self.0.borrow_mut().destroy_reader(reader)
     }
 
+    pub fn is_dirty(&self) -> bool {
+        self.0.borrow().is_dirty()
+    }
+
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> Signal<'a, R> {
         Signal::create(Mapper::new(self.world(), self.clone(), mapper))
     }
@@ -151,6 +157,14 @@ impl<'a, T: Data + 'a> Signal<'a, T> {
 
     pub fn bind<O: Data + 'a, B: Fn(&T) -> Signal<'a, O> + 'a>(&self, binder: B) -> Signal<'a, O> {
         Signal::create(Binder::new(self.world(), self.clone(), binder))
+    }
+}
+
+impl<'a, T: Data + 'a> Debug for Signal<'a, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let dirty = self.is_dirty();
+        let value = read_once(self);
+        write!(f, "Signal {{ dirty: {}, value: {:?} }}", dirty, value)
     }
 }
 
@@ -276,16 +290,16 @@ impl<T: Data> SingleValueStore<T> {
     }
 }
 
+fn read_once<'a, T: Data + 'a>(signal: &Signal<'a, T>) -> T {
+    let reader = signal.create_reader();
+    let value = signal.compute(reader);
+    signal.destroy_reader(reader);
+    value
+}
+
 #[cfg(test)]
 mod tests {
     use crate::signals::*;
-
-    fn read<T: Data + 'static>(signal: &Signal<T>) -> T {
-        let reader = signal.create_reader();
-        let value = signal.compute(reader);
-        signal.destroy_reader(reader);
-        value
-    }
 
     #[test]
     fn test_map() {
@@ -293,10 +307,10 @@ mod tests {
         let (set, v) = world.mutable(3);
         let map1 = v.map(|x| x + 1);
         let map2 = v.map(|x| x + 2);
-        assert_eq!(4, read(&map1));
-        assert_eq!(5, read(&map2));
+        assert_eq!(4, read_once(&map1));
+        assert_eq!(5, read_once(&map2));
         set(6);
-        assert_eq!(7, read(&map1));
-        assert_eq!(8, read(&map2));
+        assert_eq!(7, read_once(&map1));
+        assert_eq!(8, read_once(&map2));
     }
 }

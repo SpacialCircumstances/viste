@@ -50,6 +50,10 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> SignalCore
         self.node.remove_dependency(child)
     }
 
+    fn is_dirty(&self) -> bool {
+        self.node.is_dirty()
+    }
+
     fn world(&self) -> &World {
         self.node.world()
     }

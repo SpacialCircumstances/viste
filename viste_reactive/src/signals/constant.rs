@@ -32,6 +32,10 @@ impl<T: Data> SignalCore<T> for Constant<T> {
 
     fn remove_dependency(&mut self, child: NodeIndex) {}
 
+    fn is_dirty(&self) -> bool {
+        self.node.is_dirty()
+    }
+
     fn world(&self) -> &World {
         self.node.world()
     }

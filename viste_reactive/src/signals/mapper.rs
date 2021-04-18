@@ -48,6 +48,10 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> SignalCore<O> for Mappe
         self.node.remove_dependency(child)
     }
 
+    fn is_dirty(&self) -> bool {
+        self.node.is_dirty()
+    }
+
     fn world(&self) -> &World {
         self.node.world()
     }
@@ -105,6 +109,10 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> SignalCore<O>
 
     fn remove_dependency(&mut self, child: NodeIndex) {
         self.node.remove_dependency(child)
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.node.is_dirty()
     }
 
     fn world(&self) -> &World {

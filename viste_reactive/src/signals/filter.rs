@@ -49,6 +49,10 @@ impl<'a, T: Data + 'a, F: Fn(&T) -> bool + 'a> SignalCore<T> for Filter<'a, T, F
         self.node.remove_dependency(child)
     }
 
+    fn is_dirty(&self) -> bool {
+        self.node.is_dirty()
+    }
+
     fn world(&self) -> &World {
         self.node.world()
     }
