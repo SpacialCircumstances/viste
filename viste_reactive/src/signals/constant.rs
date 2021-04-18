@@ -16,11 +16,13 @@ impl<T: Data> Constant<T> {
 }
 
 impl<T: Data> SignalCore<T> for Constant<T> {
-    fn compute(&mut self) -> T {
+    fn compute(&mut self, reader: ReaderToken) -> T {
         self.value.cheap_clone()
     }
 
-    fn add_dependency(&mut self, child: NodeIndex) {}
+    fn add_dependency(&mut self, child: NodeIndex) -> ReaderToken {
+        ReaderToken(0)
+    }
 
     fn remove_dependency(&mut self, child: NodeIndex) {}
 

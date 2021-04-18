@@ -1,4 +1,4 @@
-use crate::signals::{Signal, World};
+use crate::signals::{ReaderToken, Signal, World};
 use crate::Data;
 use std::cell::{Cell, RefCell};
 use std::collections::hash_map::DefaultHasher;
@@ -193,7 +193,8 @@ pub fn fold<'a, T: 'a, D: Data + 'a, F: Fn(T, &D) -> D + 'a>(
     let set_store = RefCell::new(set);
     (
         Event::new(move |t| {
-            let d = vc.compute();
+            //TODO
+            let d = vc.compute(ReaderToken::default());
             let new_data = folder(t, &d);
             (set_store.borrow())(new_data)
         }),

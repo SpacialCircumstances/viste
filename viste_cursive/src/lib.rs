@@ -2,7 +2,7 @@ use cursive::view::ViewWrapper;
 use cursive::views::{TextContent, TextView};
 use cursive::{Vec2, View};
 use std::rc::Rc;
-use viste_reactive::signals::Signal;
+use viste_reactive::signals::{ReaderToken, Signal};
 
 pub struct RTextView {
     view: TextView,
@@ -12,7 +12,7 @@ pub struct RTextView {
 
 impl RTextView {
     pub fn new(text: Signal<'static, Rc<String>>) -> Self {
-        let content = TextContent::new(&*text.compute());
+        let content = TextContent::new(&*text.compute(ReaderToken::default()));
 
         let view = TextView::new_with_content(content.clone());
         Self {
@@ -42,7 +42,8 @@ impl ViewWrapper for RTextView {
 
     fn wrap_layout(&mut self, size: Vec2) {
         //TODO: Changed?
-        self.content.set_content(&*self.text.compute());
+        self.content
+            .set_content(&*self.text.compute(ReaderToken::default()));
         self.view.layout(size);
     }
 }

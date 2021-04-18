@@ -97,9 +97,12 @@ impl Clone for World {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq, Ord, Eq)]
+pub struct ReaderToken(usize);
+
 pub trait SignalCore<T: Data> {
-    fn compute(&mut self) -> T;
-    fn add_dependency(&mut self, child: NodeIndex);
+    fn compute(&mut self, reader: ReaderToken) -> T;
+    fn add_dependency(&mut self, child: NodeIndex) -> ReaderToken;
     fn remove_dependency(&mut self, child: NodeIndex);
     fn world(&self) -> &World;
 }
@@ -115,11 +118,11 @@ impl<'a, T: Data + 'a> Signal<'a, T> {
         self.0.borrow().world().clone()
     }
 
-    pub fn compute(&self) -> T {
-        self.0.borrow_mut().compute()
+    pub fn compute(&self, reader: ReaderToken) -> T {
+        self.0.borrow_mut().compute(reader)
     }
 
-    pub fn add_dependency(&self, child: NodeIndex) {
+    pub fn add_dependency(&self, child: NodeIndex) -> ReaderToken {
         self.0.borrow_mut().add_dependency(child)
     }
 
@@ -157,14 +160,16 @@ impl<'a, T: Data> Clone for Signal<'a, T> {
 pub struct ParentSignal<'a, T: Data + 'a> {
     parent: Signal<'a, T>,
     own_index: NodeIndex,
+    reader: ReaderToken,
 }
 
 impl<'a, T: Data + 'a> ParentSignal<'a, T> {
     pub fn new(signal: Signal<'a, T>, own_index: NodeIndex) -> Self {
-        signal.add_dependency(own_index);
+        let reader = signal.add_dependency(own_index);
         Self {
             parent: signal,
             own_index,
+            reader,
         }
     }
 
@@ -173,13 +178,9 @@ impl<'a, T: Data + 'a> ParentSignal<'a, T> {
         signal.add_dependency(self.own_index);
         self.parent = signal;
     }
-}
 
-impl<'a, T: Data + 'a> Deref for ParentSignal<'a, T> {
-    type Target = Signal<'a, T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.parent
+    pub fn compute(&self) -> T {
+        self.parent.compute(self.reader)
     }
 }
 

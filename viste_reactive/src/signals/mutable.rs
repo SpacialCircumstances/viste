@@ -22,12 +22,13 @@ impl<T: Data> Mutable<T> {
 }
 
 impl<T: Data> SignalCore<T> for Mutable<T> {
-    fn compute(&mut self) -> T {
+    fn compute(&mut self, reader: ReaderToken) -> T {
         self.current_value.cheap_clone()
     }
 
-    fn add_dependency(&mut self, child: NodeIndex) {
-        self.node.add_dependency(child)
+    fn add_dependency(&mut self, child: NodeIndex) -> ReaderToken {
+        self.node.add_dependency(child);
+        ReaderToken(0)
     }
 
     fn remove_dependency(&mut self, child: NodeIndex) {
