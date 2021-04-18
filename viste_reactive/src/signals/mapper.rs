@@ -31,9 +31,16 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> SignalCore<O> for Mappe
         self.current_value.cheap_clone()
     }
 
-    fn add_dependency(&mut self, child: NodeIndex) -> ReaderToken {
-        self.node.add_dependency(child);
-        ReaderToken(0)
+    fn create_reader(&mut self) -> ReaderToken {
+        todo!()
+    }
+
+    fn remove_reader(&mut self, reader: ReaderToken) {
+        todo!()
+    }
+
+    fn add_dependency(&mut self, child: NodeIndex) {
+        self.node.add_dependency(child)
     }
 
     fn remove_dependency(&mut self, child: NodeIndex) {
@@ -80,9 +87,16 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> SignalCore<O>
         self.current_value.cheap_clone()
     }
 
-    fn add_dependency(&mut self, child: NodeIndex) -> ReaderToken {
-        self.node.add_dependency(child);
-        ReaderToken(0)
+    fn create_reader(&mut self) -> ReaderToken {
+        todo!()
+    }
+
+    fn remove_reader(&mut self, reader: ReaderToken) {
+        todo!()
+    }
+
+    fn add_dependency(&mut self, child: NodeIndex) {
+        self.node.add_dependency(child)
     }
 
     fn remove_dependency(&mut self, child: NodeIndex) {

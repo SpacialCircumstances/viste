@@ -20,9 +20,15 @@ impl<T: Data> SignalCore<T> for Constant<T> {
         self.value.cheap_clone()
     }
 
-    fn add_dependency(&mut self, child: NodeIndex) -> ReaderToken {
-        ReaderToken(0)
+    fn create_reader(&mut self) -> ReaderToken {
+        todo!()
     }
+
+    fn remove_reader(&mut self, reader: ReaderToken) {
+        todo!()
+    }
+
+    fn add_dependency(&mut self, child: NodeIndex) {}
 
     fn remove_dependency(&mut self, child: NodeIndex) {}
 

@@ -37,9 +37,16 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> SignalCore
         self.current_signal.compute(reader)
     }
 
-    fn add_dependency(&mut self, child: NodeIndex) -> ReaderToken {
-        self.node.add_dependency(child);
-        ReaderToken(0)
+    fn create_reader(&mut self) -> ReaderToken {
+        todo!()
+    }
+
+    fn remove_reader(&mut self, reader: ReaderToken) {
+        todo!()
+    }
+
+    fn add_dependency(&mut self, child: NodeIndex) {
+        self.node.add_dependency(child)
     }
 
     fn remove_dependency(&mut self, child: NodeIndex) {

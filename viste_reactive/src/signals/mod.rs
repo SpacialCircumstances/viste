@@ -102,7 +102,9 @@ pub struct ReaderToken(usize);
 
 pub trait SignalCore<T: Data> {
     fn compute(&mut self, reader: ReaderToken) -> T;
-    fn add_dependency(&mut self, child: NodeIndex) -> ReaderToken;
+    fn create_reader(&mut self) -> ReaderToken;
+    fn remove_reader(&mut self, reader: ReaderToken);
+    fn add_dependency(&mut self, child: NodeIndex);
     fn remove_dependency(&mut self, child: NodeIndex);
     fn world(&self) -> &World;
 }
@@ -122,12 +124,20 @@ impl<'a, T: Data + 'a> Signal<'a, T> {
         self.0.borrow_mut().compute(reader)
     }
 
-    pub fn add_dependency(&self, child: NodeIndex) -> ReaderToken {
+    pub fn add_dependency(&self, child: NodeIndex) {
         self.0.borrow_mut().add_dependency(child)
     }
 
     pub fn remove_dependency(&self, child: NodeIndex) {
         self.0.borrow_mut().remove_dependency(child)
+    }
+
+    pub fn create_reader(&self) -> ReaderToken {
+        self.0.borrow_mut().create_reader()
+    }
+
+    pub fn remove_reader(&self, reader: ReaderToken) {
+        self.0.borrow_mut().remove_reader(reader)
     }
 
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> Signal<'a, R> {
@@ -165,7 +175,8 @@ pub struct ParentSignal<'a, T: Data + 'a> {
 
 impl<'a, T: Data + 'a> ParentSignal<'a, T> {
     pub fn new(signal: Signal<'a, T>, own_index: NodeIndex) -> Self {
-        let reader = signal.add_dependency(own_index);
+        signal.add_dependency(own_index);
+        let reader = signal.create_reader();
         Self {
             parent: signal,
             own_index,
@@ -186,7 +197,8 @@ impl<'a, T: Data + 'a> ParentSignal<'a, T> {
 
 impl<'a, T: Data + 'a> Drop for ParentSignal<'a, T> {
     fn drop(&mut self) {
-        self.parent.remove_dependency(self.own_index)
+        self.parent.remove_dependency(self.own_index);
+        self.parent.remove_reader(self.reader)
     }
 }
 
