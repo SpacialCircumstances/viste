@@ -40,7 +40,7 @@ impl<T: Data> SignalCore<T> for Mutable<T> {
     }
 
     fn remove_dependency(&mut self, child: NodeIndex) {
-        self.node.add_dependency(child)
+        self.node.remove_dependency(child)
     }
 
     fn is_dirty(&self) -> bool {
