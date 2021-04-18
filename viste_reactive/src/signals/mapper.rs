@@ -11,6 +11,7 @@ pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
 impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
     pub fn new(world: World, source: Signal<'a, I>, mapper: M) -> Self {
         let node = OwnNode::new(world);
+        info!("Mapper signal created: {}", node.node());
         let source = ParentSignal::new(source, node.node());
         let current_value = SingleValueStore::new(mapper(source.compute()));
         Mapper {
@@ -68,6 +69,7 @@ pub struct Mapper2<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(&I1, &I
 impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> Mapper2<'a, I1, I2, O, M> {
     pub fn new(world: World, source1: Signal<'a, I1>, source2: Signal<'a, I2>, mapper: M) -> Self {
         let node = OwnNode::new(world);
+        info!("Mapper2 signal created: {}", node.node());
         let source1 = ParentSignal::new(source1, node.node());
         let source2 = ParentSignal::new(source2, node.node());
         let initial_value = mapper(&source1.compute(), &source2.compute());

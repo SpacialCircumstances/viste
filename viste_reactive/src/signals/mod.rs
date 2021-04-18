@@ -5,6 +5,7 @@ use crate::signals::filter::Filter;
 use crate::signals::mapper::{Mapper, Mapper2};
 use crate::signals::mutable::Mutable;
 use crate::Data;
+use log::info;
 use slab::Slab;
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
@@ -212,6 +213,7 @@ impl<'a, T: Data + 'a> ParentSignal<'a, T> {
 
 impl<'a, T: Data + 'a> Drop for ParentSignal<'a, T> {
     fn drop(&mut self) {
+        info!("Removing {} from parent", self.own_index);
         self.parent.remove_dependency(self.own_index);
         self.parent.destroy_reader(self.reader)
     }
@@ -256,6 +258,7 @@ impl OwnNode {
 
 impl Drop for OwnNode {
     fn drop(&mut self) {
+        info!("Dropping signal: {}", self.1);
         self.0.destroy_node(self.1)
     }
 }

@@ -1,5 +1,6 @@
 use crate::signals::*;
 use crate::Data;
+use log::info;
 
 pub struct Mutable<T: Data> {
     current_value: SingleValueStore<T>,
@@ -9,6 +10,7 @@ pub struct Mutable<T: Data> {
 impl<T: Data> Mutable<T> {
     pub fn new(world: World, initial: T) -> Self {
         let node = OwnNode::new(world);
+        info!("Mutable signal created: {}", node.node());
         Self {
             current_value: SingleValueStore::new(initial),
             node,

@@ -8,8 +8,10 @@ pub struct Constant<T: Data> {
 
 impl<T: Data> Constant<T> {
     pub fn new(world: World, value: T) -> Self {
+        let node = OwnNode::new(world);
+        info!("Constant signal created: {}", node.node());
         Self {
-            node: OwnNode::new(world),
+            node,
             value: SingleValueStore::new(value),
         }
     }
