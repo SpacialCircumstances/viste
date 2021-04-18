@@ -313,4 +313,53 @@ mod tests {
         assert_eq!(7, read_once(&map1));
         assert_eq!(8, read_once(&map2));
     }
+
+    #[test]
+    fn test_map2() {
+        let world = World::new();
+        let (set1, v1) = world.mutable(0);
+        let (set2, v2) = world.mutable(0);
+        let mapped = map2(&v1, &v2, |x, y| x + y);
+        assert_eq!(0, read_once(&mapped));
+        set1(1);
+        assert_eq!(1, read_once(&mapped));
+        set2(1);
+        assert_eq!(2, read_once(&mapped));
+        set1(3);
+        set2(0);
+        assert_eq!(3, read_once(&mapped));
+        assert_eq!(3, read_once(&mapped));
+    }
+
+    #[test]
+    fn test_map2_constant() {
+        let world = World::new();
+        let (set1, v1) = world.mutable(0);
+        let v2 = world.constant(1);
+        let mapped = map2(&v1, &v2, |x, y| x + y);
+        assert_eq!(1, read_once(&mapped));
+        set1(1);
+        assert_eq!(2, read_once(&mapped));
+        set1(3);
+        assert_eq!(4, read_once(&mapped));
+        assert_eq!(4, read_once(&mapped));
+        set1(0);
+        assert_eq!(1, read_once(&mapped));
+    }
+
+    #[test]
+    fn test_filter() {
+        let world = World::new();
+        let (set, v) = world.mutable(0);
+        let filtered = v.filter(|x| x % 2 == 0, 0);
+        assert_eq!(0, read_once(&filtered));
+        set(1);
+        assert_eq!(0, read_once(&filtered));
+        set(2);
+        assert_eq!(2, read_once(&filtered));
+        set(3);
+        assert_eq!(2, read_once(&filtered));
+        set(0);
+        assert_eq!(0, read_once(&filtered));
+    }
 }
