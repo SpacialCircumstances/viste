@@ -9,4 +9,4 @@ slab = "0.4.2"
 log = "0.4"
 
 [dev-dependencies]
-simplelog = "^0.10.0"
+simple_logger = "1.11.0"
