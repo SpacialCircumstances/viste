@@ -275,3 +275,28 @@ impl<T: Data> SingleValueStore<T> {
         self.value.cheap_clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::signals::*;
+
+    fn read<T: Data + 'static>(signal: &Signal<T>) -> T {
+        let reader = signal.create_reader();
+        let value = signal.compute(reader);
+        signal.destroy_reader(reader);
+        value
+    }
+
+    #[test]
+    fn test_map() {
+        let world = World::new();
+        let (set, v) = world.mutable(3);
+        let map1 = v.map(|x| x + 1);
+        let map2 = v.map(|x| x + 2);
+        assert_eq!(4, read(&map1));
+        assert_eq!(5, read(&map2));
+        set(6);
+        assert_eq!(7, read(&map1));
+        assert_eq!(8, read(&map2));
+    }
+}
