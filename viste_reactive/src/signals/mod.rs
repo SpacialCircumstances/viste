@@ -5,6 +5,7 @@ use crate::signals::filter::Filter;
 use crate::signals::mapper::{Mapper, Mapper2};
 use crate::signals::mutable::Mutable;
 use crate::Data;
+use slab::Slab;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -103,7 +104,7 @@ pub struct ReaderToken(usize);
 pub trait SignalCore<T: Data> {
     fn compute(&mut self, reader: ReaderToken) -> T;
     fn create_reader(&mut self) -> ReaderToken;
-    fn remove_reader(&mut self, reader: ReaderToken);
+    fn destroy_reader(&mut self, reader: ReaderToken);
     fn add_dependency(&mut self, child: NodeIndex);
     fn remove_dependency(&mut self, child: NodeIndex);
     fn world(&self) -> &World;
@@ -136,8 +137,8 @@ impl<'a, T: Data + 'a> Signal<'a, T> {
         self.0.borrow_mut().create_reader()
     }
 
-    pub fn remove_reader(&self, reader: ReaderToken) {
-        self.0.borrow_mut().remove_reader(reader)
+    pub fn destroy_reader(&self, reader: ReaderToken) {
+        self.0.borrow_mut().destroy_reader(reader)
     }
 
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> Signal<'a, R> {
@@ -198,7 +199,7 @@ impl<'a, T: Data + 'a> ParentSignal<'a, T> {
 impl<'a, T: Data + 'a> Drop for ParentSignal<'a, T> {
     fn drop(&mut self) {
         self.parent.remove_dependency(self.own_index);
-        self.parent.remove_reader(self.reader)
+        self.parent.destroy_reader(self.reader)
     }
 }
 
@@ -242,5 +243,35 @@ impl OwnNode {
 impl Drop for OwnNode {
     fn drop(&mut self) {
         self.0.destroy_node(self.1)
+    }
+}
+
+pub struct SingleValueStore<T: Data> {
+    value: T,
+    current_reader_index: usize,
+}
+
+impl<T: Data> SingleValueStore<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            value,
+            current_reader_index: 0,
+        }
+    }
+
+    pub fn create_reader(&mut self) -> ReaderToken {
+        let reader = ReaderToken(self.current_reader_index);
+        self.current_reader_index += 1;
+        reader
+    }
+
+    pub fn destroy_reader(&mut self, reader: ReaderToken) {}
+
+    pub fn set_value(&mut self, value: T) {
+        self.value = value;
+    }
+
+    pub fn read(&mut self, reader: ReaderToken) -> T {
+        self.value.cheap_clone()
     }
 }

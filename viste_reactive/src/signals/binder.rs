@@ -38,7 +38,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> SignalCore
         todo!()
     }
 
-    fn remove_reader(&mut self, reader: ReaderToken) {
+    fn destroy_reader(&mut self, reader: ReaderToken) {
         todo!()
     }
 

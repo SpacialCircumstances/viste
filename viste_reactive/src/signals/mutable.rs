@@ -2,7 +2,7 @@ use crate::signals::*;
 use crate::Data;
 
 pub struct Mutable<T: Data> {
-    current_value: T,
+    current_value: SingleValueStore<T>,
     node: OwnNode,
 }
 
@@ -10,28 +10,28 @@ impl<T: Data> Mutable<T> {
     pub fn new(world: World, initial: T) -> Self {
         let node = OwnNode::new(world);
         Self {
-            current_value: initial,
+            current_value: SingleValueStore::new(initial),
             node,
         }
     }
 
     pub fn set(&mut self, value: T) {
-        self.current_value = value;
+        self.current_value.set_value(value);
         self.node.mark_dirty();
     }
 }
 
 impl<T: Data> SignalCore<T> for Mutable<T> {
     fn compute(&mut self, reader: ReaderToken) -> T {
-        self.current_value.cheap_clone()
+        self.current_value.read(reader)
     }
 
     fn create_reader(&mut self) -> ReaderToken {
-        todo!()
+        self.current_value.create_reader()
     }
 
-    fn remove_reader(&mut self, reader: ReaderToken) {
-        todo!()
+    fn destroy_reader(&mut self, reader: ReaderToken) {
+        self.current_value.destroy_reader(reader)
     }
 
     fn add_dependency(&mut self, child: NodeIndex) {

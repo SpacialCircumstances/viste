@@ -3,7 +3,7 @@ use crate::Data;
 
 pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
     source: ParentSignal<'a, I>,
-    current_value: O,
+    current_value: SingleValueStore<O>,
     mapper: M,
     node: OwnNode,
 }
@@ -12,7 +12,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
     pub fn new(world: World, source: Signal<'a, I>, mapper: M) -> Self {
         let node = OwnNode::new(world);
         let source = ParentSignal::new(source, node.node());
-        let current_value = mapper(source.compute());
+        let current_value = SingleValueStore::new(mapper(source.compute()));
         Mapper {
             source,
             mapper,
@@ -25,18 +25,19 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
 impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> SignalCore<O> for Mapper<'a, I, O, M> {
     fn compute(&mut self, reader: ReaderToken) -> O {
         if self.node.is_dirty() {
-            self.current_value = (self.mapper)(self.source.compute());
+            self.current_value
+                .set_value((self.mapper)(self.source.compute()));
             self.node.clean();
         }
-        self.current_value.cheap_clone()
+        self.current_value.read(reader)
     }
 
     fn create_reader(&mut self) -> ReaderToken {
-        todo!()
+        self.current_value.create_reader()
     }
 
-    fn remove_reader(&mut self, reader: ReaderToken) {
-        todo!()
+    fn destroy_reader(&mut self, reader: ReaderToken) {
+        self.current_value.destroy_reader(reader)
     }
 
     fn add_dependency(&mut self, child: NodeIndex) {
@@ -55,7 +56,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> SignalCore<O> for Mappe
 pub struct Mapper2<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(&I1, &I2) -> O + 'a> {
     source1: ParentSignal<'a, I1>,
     source2: ParentSignal<'a, I2>,
-    current_value: O,
+    current_value: SingleValueStore<O>,
     mapper: M,
     node: OwnNode,
 }
@@ -69,7 +70,7 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> Mapper2<'a, I1,
         Self {
             mapper,
             node,
-            current_value: initial_value,
+            current_value: SingleValueStore::new(initial_value),
             source1,
             source2,
         }
@@ -82,17 +83,20 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> SignalCore<O>
     fn compute(&mut self, reader: ReaderToken) -> O {
         if self.node.is_dirty() {
             self.node.clean();
-            self.current_value = (self.mapper)(&self.source1.compute(), &self.source2.compute())
+            self.current_value.set_value((self.mapper)(
+                &self.source1.compute(),
+                &self.source2.compute(),
+            ));
         }
-        self.current_value.cheap_clone()
+        self.current_value.read(reader)
     }
 
     fn create_reader(&mut self) -> ReaderToken {
-        todo!()
+        self.current_value.create_reader()
     }
 
-    fn remove_reader(&mut self, reader: ReaderToken) {
-        todo!()
+    fn destroy_reader(&mut self, reader: ReaderToken) {
+        self.current_value.destroy_reader(reader)
     }
 
     fn add_dependency(&mut self, child: NodeIndex) {
