@@ -4,8 +4,8 @@ use crate::Data;
 pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> {
     binder: B,
     current_signal: ParentSignal<'a, O>,
-    node: OwnNode,
     parent: ParentSignal<'a, I>,
+    node: OwnNode,
 }
 
 impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> Binder<'a, I, O, B> {
