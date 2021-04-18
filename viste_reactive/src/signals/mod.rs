@@ -169,11 +169,11 @@ impl<'a, T: Data + 'a> Debug for Signal<'a, T> {
 }
 
 pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(&T1, &T2) -> O + 'a>(
-    s1: Signal<'a, T1>,
-    s2: Signal<'a, T2>,
+    s1: &Signal<'a, T1>,
+    s2: &Signal<'a, T2>,
     mapper: M,
 ) -> Signal<'a, O> {
-    Signal::create(Mapper2::new(s1.world(), s1, s2, mapper))
+    Signal::create(Mapper2::new(s1.world(), s1.clone(), s2.clone(), mapper))
 }
 
 impl<'a, T: Data> Clone for Signal<'a, T> {
