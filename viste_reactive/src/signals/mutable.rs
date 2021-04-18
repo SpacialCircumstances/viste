@@ -23,6 +23,7 @@ impl<T: Data> Mutable<T> {
 
 impl<T: Data> SignalCore<T> for Mutable<T> {
     fn compute(&mut self, reader: ReaderToken) -> T {
+        self.node.clean();
         self.current_value.read(reader)
     }
 
