@@ -35,12 +35,10 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> SignalCore
     }
 
     fn create_reader(&mut self) -> ReaderToken {
-        todo!()
+        ReaderToken(0)
     }
 
-    fn destroy_reader(&mut self, reader: ReaderToken) {
-        todo!()
-    }
+    fn destroy_reader(&mut self, reader: ReaderToken) {}
 
     fn add_dependency(&mut self, child: NodeIndex) {
         self.node.add_dependency(child)
