@@ -300,6 +300,25 @@ fn read_once<'a, T: Data + 'a>(signal: &Signal<'a, T>) -> T {
     value
 }
 
+pub struct Reader<'a, T: Data + 'a>(Signal<'a, T>, ReaderToken);
+
+impl<'a, T: Data + 'a> Reader<'a, T> {
+    pub fn new(signal: Signal<'a, T>) -> Self {
+        let reader = signal.create_reader();
+        Self(signal, reader)
+    }
+
+    pub fn read(&self) -> T {
+        self.0.compute(self.1)
+    }
+}
+
+impl<'a, T: Data + 'a> Drop for Reader<'a, T> {
+    fn drop(&mut self) {
+        self.0.destroy_reader(self.1)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::signals::*;
