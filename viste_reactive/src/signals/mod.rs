@@ -10,7 +10,6 @@ use slab::Slab;
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::rc::Rc;
 
 mod binder;

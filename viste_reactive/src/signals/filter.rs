@@ -26,11 +26,10 @@ impl<'a, T: Data + 'a, F: Fn(&T) -> bool + 'a> ComputationCore<T> for Filter<'a,
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {
         if self.node.is_dirty() {
             self.node.clean();
-            match self.source.compute() {
-                SingleComputationResult::Changed(new_source) if (self.filter)(&new_source) => {
+            if let SingleComputationResult::Changed(new_source) = self.source.compute() {
+                if (self.filter)(&new_source) {
                     self.current_value.set_value(new_source);
                 }
-                _ => (),
             }
         }
         self.current_value.read(reader)

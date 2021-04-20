@@ -1,6 +1,5 @@
 use crate::signals::*;
 use crate::Data;
-use std::marker::PhantomData;
 
 pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
     source: ParentSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
@@ -30,14 +29,10 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> ComputationCore<O>
 {
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<O> {
         if self.node.is_dirty() {
-            match self.source.compute() {
-                SingleComputationResult::Changed(new_source) => {
-                    self.current_value.set_value((self.mapper)(new_source));
-                }
-                _ => (),
-            }
-
             self.node.clean();
+            if let SingleComputationResult::Changed(new_source) = self.source.compute() {
+                self.current_value.set_value((self.mapper)(new_source));
+            }
         }
         self.current_value.read(reader)
     }

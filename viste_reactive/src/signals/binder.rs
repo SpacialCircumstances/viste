@@ -34,15 +34,12 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> Computatio
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<O> {
         if self.node.is_dirty() {
             self.node.clean();
-            match self.parent.compute() {
-                SingleComputationResult::Unchanged => (),
-                SingleComputationResult::Changed(t) => {
-                    self.current_signal = ParentSignal::new((self.binder)(&t), self.node.node());
-                }
+            if let SingleComputationResult::Changed(new_source) = self.parent.compute() {
+                self.current_signal =
+                    ParentSignal::new((self.binder)(&new_source), self.node.node());
             }
-            match self.current_signal.compute() {
-                SingleComputationResult::Unchanged => (),
-                SingleComputationResult::Changed(v) => self.current_value.set_value(v),
+            if let SingleComputationResult::Changed(new_value) = self.current_signal.compute() {
+                self.current_value.set_value(new_value)
             }
         }
         self.current_value.read(reader)
