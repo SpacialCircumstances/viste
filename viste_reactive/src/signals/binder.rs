@@ -5,6 +5,7 @@ pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + '
     binder: B,
     current_signal: ParentSignal<'a, O, SingleComputationResult<O>, ChangeReader<'a, O>>,
     parent: ParentSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
+    current_value: SingleValueStore<O>,
     node: OwnNode,
 }
 
@@ -14,18 +15,19 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> Binder<'a,
         info!("Binder signal created: {}", node.node());
         let mut parent: ParentSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
             ParentSignal::new(parent, node.node());
-        let initial_signal: ParentSignal<O, SingleComputationResult<O>, ChangeReader<O>> =
+        let mut initial_signal: ParentSignal<O, SingleComputationResult<O>, ChangeReader<O>> =
             ParentSignal::new(binder(&parent.compute().unwrap_changed()), node.node());
+        let current_value = SingleValueStore::new(initial_signal.compute().unwrap_changed());
         Binder {
             binder,
             node,
             parent,
+            current_value,
             current_signal: initial_signal,
         }
     }
 }
 
-//TODO: ADD READER STUFF
 impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> ComputationCore<O>
     for Binder<'a, I, O, B>
 {
@@ -38,15 +40,21 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> Computatio
                     self.current_signal = ParentSignal::new((self.binder)(&t), self.node.node());
                 }
             }
+            match self.current_signal.compute() {
+                SingleComputationResult::Unchanged => (),
+                SingleComputationResult::Changed(v) => self.current_value.set_value(v),
+            }
         }
-        self.current_signal.compute()
+        self.current_value.read(reader)
     }
 
     fn create_reader(&mut self) -> ReaderToken {
-        ReaderToken(0)
+        self.current_value.create_reader()
     }
 
-    fn destroy_reader(&mut self, reader: ReaderToken) {}
+    fn destroy_reader(&mut self, reader: ReaderToken) {
+        self.current_value.destroy_reader(reader)
+    }
 
     fn add_dependency(&mut self, child: NodeIndex) {
         self.node.add_dependency(child)

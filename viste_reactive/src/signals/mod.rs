@@ -104,7 +104,7 @@ impl Clone for World {
 #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ReaderToken(usize);
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum SingleComputationResult<T: Data> {
     Changed(T),
     Unchanged,
