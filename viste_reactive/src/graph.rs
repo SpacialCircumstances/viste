@@ -1,9 +1,17 @@
+use log::info;
 use std::collections::vec_deque::VecDeque;
+use std::fmt::{Display, Formatter};
 use std::mem::replace;
 use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct NodeIndex(usize);
+
+impl Display for NodeIndex {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 struct Adjacency {
     parents: Vec<usize>,
@@ -95,27 +103,31 @@ impl<T> Graph<T> {
                 children: Vec::new(),
             },
         );
-        match self.free_nodes.pop_front() {
+        let ni = match self.free_nodes.pop_front() {
             None => {
                 self.nodes.push(node);
-                NodeIndex(self.nodes.len() - 1)
+                self.nodes.len() - 1
             }
             Some(free_idx) => match self.nodes[free_idx] {
                 Node::Filled(_, _) => panic!("Expected empty node"),
                 Node::Empty => {
                     self.nodes[free_idx] = node;
-                    NodeIndex(free_idx)
+                    free_idx
                 }
             },
-        }
+        };
+        info!("Added node {}", ni);
+        NodeIndex(ni)
     }
 
     pub fn add_edge(&mut self, from: NodeIndex, to: NodeIndex) {
+        info!("Adding edge {} -> {}", from, to);
         self.get_adjacency_mut(from.0).children.push(to.0);
         self.get_adjacency_mut(to.0).parents.push(from.0);
     }
 
     pub fn remove_edge(&mut self, from: NodeIndex, to: NodeIndex) {
+        info!("Removing edge {} -> {}", from, to);
         let from_adj = self.get_adjacency_mut(from.0);
         remove_from(&mut from_adj.children, to.0);
 
@@ -124,6 +136,7 @@ impl<T> Graph<T> {
     }
 
     pub fn remove_node(&mut self, node: NodeIndex) -> T {
+        info!("Removing node {}", node);
         match replace(&mut self.nodes[node.0], Node::Empty) {
             Node::Filled(data, adj) => {
                 for ch in &adj.children {

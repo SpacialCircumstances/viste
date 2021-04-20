@@ -1,16 +1,15 @@
-use std::rc::Rc;
+use std::fmt::Debug;
 
-pub mod events;
 mod graph;
 pub mod signals;
 
-pub trait Data {
+pub trait Data: Debug {
     fn changed(&self, other: &Self) -> bool;
     fn cheap_clone(&self) -> Self;
 }
 
 //TODO: Find a way to only impl for Rc, Arc, T: Copy
-impl<T: Clone + PartialEq> Data for T {
+impl<T: Debug + Clone + PartialEq> Data for T {
     fn changed(&self, other: &T) -> bool {
         self != other
     }
