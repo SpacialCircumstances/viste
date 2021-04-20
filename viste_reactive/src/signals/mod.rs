@@ -131,45 +131,58 @@ pub trait ComputationCore<T: Data> {
     fn world(&self) -> &World;
 }
 
+pub trait Signal<'a, T: Data + 'a, S: 'a> {
+    fn create<C: ComputationCore<T, ComputationResult = S> + 'a>(r: C) -> Self;
+    fn world(&self) -> World;
+    fn compute(&self, reader: ReaderToken) -> S;
+    fn add_dependency(&self, child: NodeIndex);
+    fn remove_dependency(&self, child: NodeIndex);
+    fn create_reader(&self) -> ReaderToken;
+    fn destroy_reader(&self, reader: ReaderToken);
+    fn is_dirty(&self) -> bool;
+}
+
 pub struct ValueSignal<'a, T: Data>(
     Rc<RefCell<dyn ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>>,
 );
 
-impl<'a, T: Data + 'a> ValueSignal<'a, T> {
-    pub fn create<S: ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>(
+impl<'a, T: Data + 'a> Signal<'a, T, SingleComputationResult<T>> for ValueSignal<'a, T> {
+    fn create<S: ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>(
         r: S,
     ) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
 
-    pub fn world(&self) -> World {
+    fn world(&self) -> World {
         self.0.borrow().world().clone()
     }
 
-    pub fn compute(&self, reader: ReaderToken) -> SingleComputationResult<T> {
+    fn compute(&self, reader: ReaderToken) -> SingleComputationResult<T> {
         self.0.borrow_mut().compute(reader)
     }
 
-    pub fn add_dependency(&self, child: NodeIndex) {
+    fn add_dependency(&self, child: NodeIndex) {
         self.0.borrow_mut().add_dependency(child)
     }
 
-    pub fn remove_dependency(&self, child: NodeIndex) {
+    fn remove_dependency(&self, child: NodeIndex) {
         self.0.borrow_mut().remove_dependency(child)
     }
 
-    pub fn create_reader(&self) -> ReaderToken {
+    fn create_reader(&self) -> ReaderToken {
         self.0.borrow_mut().create_reader()
     }
 
-    pub fn destroy_reader(&self, reader: ReaderToken) {
+    fn destroy_reader(&self, reader: ReaderToken) {
         self.0.borrow_mut().destroy_reader(reader)
     }
 
-    pub fn is_dirty(&self) -> bool {
+    fn is_dirty(&self) -> bool {
         self.0.borrow().is_dirty()
     }
+}
 
+impl<'a, T: Data + 'a> ValueSignal<'a, T> {
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> ValueSignal<'a, R> {
         ValueSignal::create(Mapper::new(self.world(), self.clone(), mapper))
     }
