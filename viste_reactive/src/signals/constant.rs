@@ -17,8 +17,8 @@ impl<T: Data> Constant<T> {
     }
 }
 
-impl<T: Data> SignalCore<T> for Constant<T> {
-    fn compute(&mut self, reader: ReaderToken) -> T {
+impl<T: Data> ComputationCore<T> for Constant<T> {
+    fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {
         self.value.read(reader)
     }
 

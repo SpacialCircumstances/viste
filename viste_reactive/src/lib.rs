@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-pub mod events;
 mod graph;
 pub mod signals;
 

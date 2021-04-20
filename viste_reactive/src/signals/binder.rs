@@ -3,8 +3,8 @@ use crate::Data;
 
 pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> {
     binder: B,
-    current_signal: ParentSignal<'a, O>,
-    parent: ParentSignal<'a, I>,
+    current_signal: ParentSignal<'a, O, SingleComputationResult<O>, ChangeReader<'a, O>>,
+    parent: ParentSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
     node: OwnNode,
 }
 
@@ -12,8 +12,10 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> Binder<'a,
     pub fn new(world: World, parent: Signal<'a, I>, binder: B) -> Self {
         let node = OwnNode::new(world);
         info!("Binder signal created: {}", node.node());
-        let parent = ParentSignal::new(parent, node.node());
-        let initial_signal = ParentSignal::new(binder(&parent.compute()), node.node());
+        let mut parent: ParentSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
+            ParentSignal::new(parent, node.node());
+        let initial_signal: ParentSignal<O, SingleComputationResult<O>, ChangeReader<O>> =
+            ParentSignal::new(binder(&parent.compute().unwrap_changed()), node.node());
         Binder {
             binder,
             node,
@@ -23,14 +25,19 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> Binder<'a,
     }
 }
 
-impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> SignalCore<O>
+//TODO: ADD READER STUFF
+impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(&I) -> Signal<'a, O> + 'a> ComputationCore<O>
     for Binder<'a, I, O, B>
 {
-    fn compute(&mut self, reader: ReaderToken) -> O {
+    fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<O> {
         if self.node.is_dirty() {
             self.node.clean();
-            let new_source = self.parent.compute();
-            self.current_signal = ParentSignal::new((self.binder)(&new_source), self.node.node());
+            match self.parent.compute() {
+                SingleComputationResult::Unchanged => (),
+                SingleComputationResult::Changed(t) => {
+                    self.current_signal = ParentSignal::new((self.binder)(&t), self.node.node());
+                }
+            }
         }
         self.current_signal.compute()
     }

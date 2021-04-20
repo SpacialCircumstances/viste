@@ -2,7 +2,7 @@ use crate::signals::*;
 use crate::Data;
 
 pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
-    source: ParentSignal<'a, T>,
+    source: ParentSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
     current_value: SingleValueStore<T>,
     filter: F,
     node: OwnNode,
@@ -22,13 +22,15 @@ impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
     }
 }
 
-impl<'a, T: Data + 'a, F: Fn(&T) -> bool + 'a> SignalCore<T> for Filter<'a, T, F> {
-    fn compute(&mut self, reader: ReaderToken) -> T {
+impl<'a, T: Data + 'a, F: Fn(&T) -> bool + 'a> ComputationCore<T> for Filter<'a, T, F> {
+    fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {
         if self.node.is_dirty() {
             self.node.clean();
-            let new_source = self.source.compute();
-            if (self.filter)(&new_source) {
-                self.current_value.set_value(new_source);
+            match self.source.compute() {
+                SingleComputationResult::Changed(new_source) if (self.filter)(&new_source) => {
+                    self.current_value.set_value(new_source);
+                }
+                _ => (),
             }
         }
         self.current_value.read(reader)

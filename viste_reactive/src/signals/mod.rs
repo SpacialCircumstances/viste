@@ -9,6 +9,7 @@ use log::info;
 use slab::Slab;
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -103,8 +104,25 @@ impl Clone for World {
 #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ReaderToken(usize);
 
-pub trait SignalCore<T: Data> {
-    fn compute(&mut self, reader: ReaderToken) -> T;
+#[derive(Debug)]
+pub enum SingleComputationResult<T: Data> {
+    Changed(T),
+    Unchanged,
+}
+
+impl<T: Data> SingleComputationResult<T> {
+    pub fn unwrap_changed(self) -> T {
+        match self {
+            SingleComputationResult::Changed(v) => v,
+            SingleComputationResult::Unchanged => {
+                panic!("Tried to unwrap changed value, but was unchanged")
+            }
+        }
+    }
+}
+
+pub trait ComputationCore<T: Data> {
+    fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T>;
     fn create_reader(&mut self) -> ReaderToken;
     fn destroy_reader(&mut self, reader: ReaderToken);
     fn add_dependency(&mut self, child: NodeIndex);
@@ -113,10 +131,10 @@ pub trait SignalCore<T: Data> {
     fn world(&self) -> &World;
 }
 
-pub struct Signal<'a, T: Data>(Rc<RefCell<dyn SignalCore<T> + 'a>>);
+pub struct Signal<'a, T: Data>(Rc<RefCell<dyn ComputationCore<T> + 'a>>);
 
 impl<'a, T: Data + 'a> Signal<'a, T> {
-    pub fn create<S: SignalCore<T> + 'a>(r: S) -> Self {
+    pub fn create<S: ComputationCore<T> + 'a>(r: S) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
 
@@ -124,7 +142,7 @@ impl<'a, T: Data + 'a> Signal<'a, T> {
         self.0.borrow().world().clone()
     }
 
-    pub fn compute(&self, reader: ReaderToken) -> T {
+    pub fn compute(&self, reader: ReaderToken) -> SingleComputationResult<T> {
         self.0.borrow_mut().compute(reader)
     }
 
@@ -183,20 +201,22 @@ impl<'a, T: Data> Clone for Signal<'a, T> {
     }
 }
 
-pub struct ParentSignal<'a, T: Data + 'a> {
+pub struct ParentSignal<'a, T: Data + 'a, S, R: Reader<'a, T, S>> {
     parent: Signal<'a, T>,
     own_index: NodeIndex,
-    reader: ReaderToken,
+    reader: R,
+    _data: PhantomData<S>,
 }
 
-impl<'a, T: Data + 'a> ParentSignal<'a, T> {
+impl<'a, T: Data + 'a, S, R: Reader<'a, T, S>> ParentSignal<'a, T, S, R> {
     pub fn new(signal: Signal<'a, T>, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
-        let reader = signal.create_reader();
+        let reader = R::new(signal.clone());
         Self {
             parent: signal,
             own_index,
             reader,
+            _data: PhantomData,
         }
     }
 
@@ -206,16 +226,15 @@ impl<'a, T: Data + 'a> ParentSignal<'a, T> {
         self.parent = signal;
     }
 
-    pub fn compute(&self) -> T {
-        self.parent.compute(self.reader)
+    pub fn compute(&mut self) -> S {
+        self.reader.read()
     }
 }
 
-impl<'a, T: Data + 'a> Drop for ParentSignal<'a, T> {
+impl<'a, T: Data + 'a, S, R: Reader<'a, T, S>> Drop for ParentSignal<'a, T, S, R> {
     fn drop(&mut self) {
         info!("Removing {} from parent", self.own_index);
         self.parent.remove_dependency(self.own_index);
-        self.parent.destroy_reader(self.reader)
     }
 }
 
@@ -265,31 +284,44 @@ impl Drop for OwnNode {
 
 pub struct SingleValueStore<T: Data> {
     value: T,
-    current_reader_index: usize,
+    reader_states: Slab<bool>,
 }
 
 impl<T: Data> SingleValueStore<T> {
     pub fn new(value: T) -> Self {
         Self {
             value,
-            current_reader_index: 0,
+            reader_states: Slab::new(),
         }
     }
 
     pub fn create_reader(&mut self) -> ReaderToken {
-        let reader = ReaderToken(self.current_reader_index);
-        self.current_reader_index += 1;
-        reader
+        let reader = self.reader_states.insert(false);
+        ReaderToken(reader)
     }
 
-    pub fn destroy_reader(&mut self, reader: ReaderToken) {}
+    pub fn destroy_reader(&mut self, reader: ReaderToken) {
+        self.reader_states.remove(reader.0);
+    }
 
     pub fn set_value(&mut self, value: T) {
         self.value = value;
+        self.reader_states
+            .iter_mut()
+            .for_each(|(_, rs)| *rs = false);
     }
 
-    pub fn read(&mut self, reader: ReaderToken) -> T {
-        self.value.cheap_clone()
+    pub fn read(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {
+        let state = self
+            .reader_states
+            .get_mut(reader.0)
+            .expect("Reader not found");
+        if !*state {
+            *state = true;
+            SingleComputationResult::Changed(self.value.cheap_clone())
+        } else {
+            SingleComputationResult::Unchanged
+        }
     }
 }
 
@@ -297,25 +329,58 @@ fn read_once<'a, T: Data + 'a>(signal: &Signal<'a, T>) -> T {
     let reader = signal.create_reader();
     let value = signal.compute(reader);
     signal.destroy_reader(reader);
-    value
+    value.unwrap_changed()
 }
 
-pub struct Reader<'a, T: Data + 'a>(Signal<'a, T>, ReaderToken);
+pub trait Reader<'a, T: Data + 'a, R> {
+    fn new(signal: Signal<'a, T>) -> Self;
+    fn read(&mut self) -> R;
+}
 
-impl<'a, T: Data + 'a> Reader<'a, T> {
-    pub fn new(signal: Signal<'a, T>) -> Self {
+pub struct ChangeReader<'a, T: Data + 'a>(Signal<'a, T>, ReaderToken);
+
+impl<'a, T: Data + 'a> Reader<'a, T, SingleComputationResult<T>> for ChangeReader<'a, T> {
+    fn new(signal: Signal<'a, T>) -> Self {
         let reader = signal.create_reader();
         Self(signal, reader)
     }
 
-    pub fn read(&self) -> T {
+    fn read(&mut self) -> SingleComputationResult<T> {
         self.0.compute(self.1)
     }
 }
 
-impl<'a, T: Data + 'a> Drop for Reader<'a, T> {
+impl<'a, T: Data + 'a> Drop for ChangeReader<'a, T> {
     fn drop(&mut self) {
         self.0.destroy_reader(self.1)
+    }
+}
+
+pub struct CachedReader<'a, T: Data + 'a> {
+    signal: Signal<'a, T>,
+    token: ReaderToken,
+    cache: T,
+}
+
+impl<'a, T: Data + 'a> Reader<'a, T, (bool, T)> for CachedReader<'a, T> {
+    fn new(signal: Signal<'a, T>) -> Self {
+        let token = signal.create_reader();
+        let initial_value = signal.compute(token).unwrap_changed();
+        Self {
+            signal,
+            token,
+            cache: initial_value,
+        }
+    }
+
+    fn read(&mut self) -> (bool, T) {
+        match self.signal.compute(self.token) {
+            SingleComputationResult::Changed(new_v) => {
+                self.cache = new_v;
+                (true, self.cache.cheap_clone())
+            }
+            SingleComputationResult::Unchanged => (false, self.cache.cheap_clone()),
+        }
     }
 }
 

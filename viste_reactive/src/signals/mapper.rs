@@ -1,8 +1,9 @@
 use crate::signals::*;
 use crate::Data;
+use std::marker::PhantomData;
 
 pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
-    source: ParentSignal<'a, I>,
+    source: ParentSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
     current_value: SingleValueStore<O>,
     mapper: M,
     node: OwnNode,
@@ -12,8 +13,9 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
     pub fn new(world: World, source: Signal<'a, I>, mapper: M) -> Self {
         let node = OwnNode::new(world);
         info!("Mapper signal created: {}", node.node());
-        let source = ParentSignal::new(source, node.node());
-        let current_value = SingleValueStore::new(mapper(source.compute()));
+        let mut source: ParentSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
+            ParentSignal::new(source, node.node());
+        let current_value = SingleValueStore::new(mapper(source.compute().unwrap_changed()));
         Mapper {
             source,
             mapper,
@@ -23,11 +25,18 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
     }
 }
 
-impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> SignalCore<O> for Mapper<'a, I, O, M> {
-    fn compute(&mut self, reader: ReaderToken) -> O {
+impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> ComputationCore<O>
+    for Mapper<'a, I, O, M>
+{
+    fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<O> {
         if self.node.is_dirty() {
-            self.current_value
-                .set_value((self.mapper)(self.source.compute()));
+            match self.source.compute() {
+                SingleComputationResult::Changed(new_source) => {
+                    self.current_value.set_value((self.mapper)(new_source));
+                }
+                _ => (),
+            }
+
             self.node.clean();
         }
         self.current_value.read(reader)
@@ -59,8 +68,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> SignalCore<O> for Mappe
 }
 
 pub struct Mapper2<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(&I1, &I2) -> O + 'a> {
-    source1: ParentSignal<'a, I1>,
-    source2: ParentSignal<'a, I2>,
+    source1: ParentSignal<'a, I1, (bool, I1), CachedReader<'a, I1>>,
+    source2: ParentSignal<'a, I2, (bool, I2), CachedReader<'a, I2>>,
     current_value: SingleValueStore<O>,
     mapper: M,
     node: OwnNode,
@@ -70,9 +79,11 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> Mapper2<'a, I1,
     pub fn new(world: World, source1: Signal<'a, I1>, source2: Signal<'a, I2>, mapper: M) -> Self {
         let node = OwnNode::new(world);
         info!("Mapper2 signal created: {}", node.node());
-        let source1 = ParentSignal::new(source1, node.node());
-        let source2 = ParentSignal::new(source2, node.node());
-        let initial_value = mapper(&source1.compute(), &source2.compute());
+        let mut source1: ParentSignal<'a, I1, (bool, I1), CachedReader<'a, I1>> =
+            ParentSignal::new(source1, node.node());
+        let mut source2: ParentSignal<'a, I2, (bool, I2), CachedReader<'a, I2>> =
+            ParentSignal::new(source2, node.node());
+        let initial_value = mapper(&source1.compute().1, &source2.compute().1);
         Self {
             mapper,
             node,
@@ -83,16 +94,17 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> Mapper2<'a, I1,
     }
 }
 
-impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> SignalCore<O>
+impl<'a, I1: Data, I2: Data, O: Data, M: Fn(&I1, &I2) -> O + 'a> ComputationCore<O>
     for Mapper2<'a, I1, I2, O, M>
 {
-    fn compute(&mut self, reader: ReaderToken) -> O {
+    fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<O> {
         if self.node.is_dirty() {
             self.node.clean();
-            self.current_value.set_value((self.mapper)(
-                &self.source1.compute(),
-                &self.source2.compute(),
-            ));
+            let (changed1, v1) = self.source1.compute();
+            let (changed2, v2) = self.source2.compute();
+            if changed1 || changed2 {
+                self.current_value.set_value((self.mapper)(&v1, &v2))
+            }
         }
         self.current_value.read(reader)
     }
