@@ -173,7 +173,7 @@ impl<'a, T: Data + 'a> Signal<'a, T> {
         Signal::create(Filter::new(self.world(), self.clone(), initial, filter))
     }
 
-    pub fn bind<O: Data + 'a, B: Fn(&T) -> Signal<'a, O> + 'a>(&self, binder: B) -> Signal<'a, O> {
+    pub fn bind<O: Data + 'a, B: Fn(T) -> Signal<'a, O> + 'a>(&self, binder: B) -> Signal<'a, O> {
         Signal::create(Binder::new(self.world(), self.clone(), binder))
     }
 }
@@ -186,7 +186,7 @@ impl<'a, T: Data + 'a> Debug for Signal<'a, T> {
     }
 }
 
-pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(&T1, &T2) -> O + 'a>(
+pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(T1, T2) -> O + 'a>(
     s1: &Signal<'a, T1>,
     s2: &Signal<'a, T2>,
     mapper: M,
@@ -454,10 +454,7 @@ mod tests {
         let world = World::new();
         let c = world.constant(2);
         let (set, v) = world.mutable(0);
-        let bound = v.bind(move |x| {
-            let x = *x;
-            c.map(move |v| v + x)
-        });
+        let bound = v.bind(move |x| c.map(move |v| v + x));
         assert_eq!(2, read_once(&bound));
         set(2);
         assert_eq!(4, read_once(&bound));
@@ -471,7 +468,7 @@ mod tests {
         let (set1, v1) = world.mutable(1);
         let (set2, v2) = world.mutable(2);
         let (switch, switcher) = world.mutable(false);
-        let b = switcher.bind(move |b| if *b { v1.clone() } else { v2.clone() });
+        let b = switcher.bind(move |b| if b { v1.clone() } else { v2.clone() });
         assert_eq!(2, read_once(&b));
         switch(true);
         assert_eq!(1, read_once(&b));
