@@ -121,7 +121,8 @@ impl<T: Data> SingleComputationResult<T> {
 }
 
 pub trait ComputationCore<T: Data> {
-    fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T>;
+    type ComputationResult;
+    fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult;
     fn create_reader(&mut self) -> ReaderToken;
     fn destroy_reader(&mut self, reader: ReaderToken);
     fn add_dependency(&mut self, child: NodeIndex);
@@ -130,10 +131,14 @@ pub trait ComputationCore<T: Data> {
     fn world(&self) -> &World;
 }
 
-pub struct Signal<'a, T: Data>(Rc<RefCell<dyn ComputationCore<T> + 'a>>);
+pub struct Signal<'a, T: Data>(
+    Rc<RefCell<dyn ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>>,
+);
 
 impl<'a, T: Data + 'a> Signal<'a, T> {
-    pub fn create<S: ComputationCore<T> + 'a>(r: S) -> Self {
+    pub fn create<S: ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>(
+        r: S,
+    ) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
 

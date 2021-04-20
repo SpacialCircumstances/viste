@@ -27,6 +27,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
 impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> ComputationCore<O>
     for Mapper<'a, I, O, M>
 {
+    type ComputationResult = SingleComputationResult<O>;
+
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<O> {
         if self.node.is_dirty() {
             self.node.clean();
@@ -92,6 +94,8 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> Mapper2<'a, I1, I
 impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> ComputationCore<O>
     for Mapper2<'a, I1, I2, O, M>
 {
+    type ComputationResult = SingleComputationResult<O>;
+
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<O> {
         if self.node.is_dirty() {
             self.node.clean();

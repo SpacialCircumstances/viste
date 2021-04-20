@@ -24,6 +24,8 @@ impl<T: Data> Mutable<T> {
 }
 
 impl<T: Data> ComputationCore<T> for Mutable<T> {
+    type ComputationResult = SingleComputationResult<T>;
+
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {
         self.node.clean();
         self.current_value.read(reader)

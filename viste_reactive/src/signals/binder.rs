@@ -31,6 +31,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> Signal<'a, O> + 'a> Binder<'a, 
 impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> Signal<'a, O> + 'a> ComputationCore<O>
     for Binder<'a, I, O, B>
 {
+    type ComputationResult = SingleComputationResult<O>;
+
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<O> {
         if self.node.is_dirty() {
             self.node.clean();
