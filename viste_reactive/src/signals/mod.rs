@@ -8,6 +8,7 @@ use crate::Data;
 use log::info;
 use slab::Slab;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::rc::Rc;
@@ -380,6 +381,37 @@ impl<T: Data> SingleValueStore<T> {
         } else {
             SingleComputationResult::Unchanged
         }
+    }
+}
+
+pub struct BufferedStore<T: Data> {
+    //TODO: Optimize with single queue and position as state
+    reader_states: Slab<VecDeque<T>>,
+}
+
+impl<T: Data> BufferedStore<T> {
+    pub fn new() -> Self {
+        Self {
+            reader_states: Slab::new(),
+        }
+    }
+
+    pub fn create_reader(&mut self) -> ReaderToken {
+        ReaderToken(self.reader_states.insert(VecDeque::new()))
+    }
+
+    pub fn destroy_reader(&mut self, reader: ReaderToken) {
+        self.reader_states.remove(reader.0);
+    }
+
+    pub fn read(&mut self, reader: ReaderToken) -> Option<T> {
+        self.reader_states[reader.0].pop_front()
+    }
+
+    pub fn push(&mut self, value: T) {
+        self.reader_states
+            .iter_mut()
+            .for_each(|(_, rs)| rs.push_back(value.cheap_clone()))
     }
 }
 
