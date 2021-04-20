@@ -383,6 +383,12 @@ impl<'a, T: Data + 'a> Reader<'a, T, (bool, T)> for CachedReader<'a, T> {
     }
 }
 
+impl<'a, T: Data + 'a> Drop for CachedReader<'a, T> {
+    fn drop(&mut self) {
+        self.signal.destroy_reader(self.token)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::signals::*;
