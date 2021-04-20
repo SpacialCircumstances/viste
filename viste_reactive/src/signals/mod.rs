@@ -75,16 +75,16 @@ impl World {
         wd.dependencies.remove_edge(parent, child);
     }
 
-    pub fn mutable<'a, T: Data + 'a>(&self, initial: T) -> (impl Fn(T), Signal<'a, T>) {
+    pub fn mutable<'a, T: Data + 'a>(&self, initial: T) -> (impl Fn(T), ValueSignal<'a, T>) {
         let m = Mutable::new(self.clone(), initial);
         let signal = Rc::new(RefCell::new(m));
         let s = signal.clone();
         let mutator = move |v| s.borrow_mut().set(v);
-        (mutator, Signal(signal))
+        (mutator, ValueSignal(signal))
     }
 
-    pub fn constant<'a, T: Data + 'a>(&self, value: T) -> Signal<'a, T> {
-        Signal::create(Constant::new(self.clone(), value))
+    pub fn constant<'a, T: Data + 'a>(&self, value: T) -> ValueSignal<'a, T> {
+        ValueSignal::create(Constant::new(self.clone(), value))
     }
 }
 
@@ -131,11 +131,11 @@ pub trait ComputationCore<T: Data> {
     fn world(&self) -> &World;
 }
 
-pub struct Signal<'a, T: Data>(
+pub struct ValueSignal<'a, T: Data>(
     Rc<RefCell<dyn ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>>,
 );
 
-impl<'a, T: Data + 'a> Signal<'a, T> {
+impl<'a, T: Data + 'a> ValueSignal<'a, T> {
     pub fn create<S: ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>(
         r: S,
     ) -> Self {
@@ -170,20 +170,23 @@ impl<'a, T: Data + 'a> Signal<'a, T> {
         self.0.borrow().is_dirty()
     }
 
-    pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> Signal<'a, R> {
-        Signal::create(Mapper::new(self.world(), self.clone(), mapper))
+    pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> ValueSignal<'a, R> {
+        ValueSignal::create(Mapper::new(self.world(), self.clone(), mapper))
     }
 
-    pub fn filter<F: Fn(&T) -> bool + 'a>(self, filter: F, initial: T) -> Signal<'a, T> {
-        Signal::create(Filter::new(self.world(), self.clone(), initial, filter))
+    pub fn filter<F: Fn(&T) -> bool + 'a>(self, filter: F, initial: T) -> ValueSignal<'a, T> {
+        ValueSignal::create(Filter::new(self.world(), self.clone(), initial, filter))
     }
 
-    pub fn bind<O: Data + 'a, B: Fn(T) -> Signal<'a, O> + 'a>(&self, binder: B) -> Signal<'a, O> {
-        Signal::create(Binder::new(self.world(), self.clone(), binder))
+    pub fn bind<O: Data + 'a, B: Fn(T) -> ValueSignal<'a, O> + 'a>(
+        &self,
+        binder: B,
+    ) -> ValueSignal<'a, O> {
+        ValueSignal::create(Binder::new(self.world(), self.clone(), binder))
     }
 }
 
-impl<'a, T: Data + 'a> Debug for Signal<'a, T> {
+impl<'a, T: Data + 'a> Debug for ValueSignal<'a, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let dirty = self.is_dirty();
         let value = read_once(self);
@@ -192,28 +195,28 @@ impl<'a, T: Data + 'a> Debug for Signal<'a, T> {
 }
 
 pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(T1, T2) -> O + 'a>(
-    s1: &Signal<'a, T1>,
-    s2: &Signal<'a, T2>,
+    s1: &ValueSignal<'a, T1>,
+    s2: &ValueSignal<'a, T2>,
     mapper: M,
-) -> Signal<'a, O> {
-    Signal::create(Mapper2::new(s1.world(), s1.clone(), s2.clone(), mapper))
+) -> ValueSignal<'a, O> {
+    ValueSignal::create(Mapper2::new(s1.world(), s1.clone(), s2.clone(), mapper))
 }
 
-impl<'a, T: Data> Clone for Signal<'a, T> {
+impl<'a, T: Data> Clone for ValueSignal<'a, T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
 pub struct ParentSignal<'a, T: Data + 'a, S, R: Reader<'a, T, S>> {
-    parent: Signal<'a, T>,
+    parent: ValueSignal<'a, T>,
     own_index: NodeIndex,
     reader: R,
     _data: PhantomData<S>,
 }
 
 impl<'a, T: Data + 'a, S, R: Reader<'a, T, S>> ParentSignal<'a, T, S, R> {
-    pub fn new(signal: Signal<'a, T>, own_index: NodeIndex) -> Self {
+    pub fn new(signal: ValueSignal<'a, T>, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
         let reader = R::new(signal.clone());
         Self {
@@ -224,7 +227,7 @@ impl<'a, T: Data + 'a, S, R: Reader<'a, T, S>> ParentSignal<'a, T, S, R> {
         }
     }
 
-    pub fn set_parent(&mut self, signal: Signal<'a, T>) {
+    pub fn set_parent(&mut self, signal: ValueSignal<'a, T>) {
         self.parent.remove_dependency(self.own_index);
         signal.add_dependency(self.own_index);
         self.parent = signal;
@@ -329,7 +332,7 @@ impl<T: Data> SingleValueStore<T> {
     }
 }
 
-fn read_once<'a, T: Data + 'a>(signal: &Signal<'a, T>) -> T {
+fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
     let reader = signal.create_reader();
     let value = signal.compute(reader);
     signal.destroy_reader(reader);
@@ -337,14 +340,14 @@ fn read_once<'a, T: Data + 'a>(signal: &Signal<'a, T>) -> T {
 }
 
 pub trait Reader<'a, T: Data + 'a, R> {
-    fn new(signal: Signal<'a, T>) -> Self;
+    fn new(signal: ValueSignal<'a, T>) -> Self;
     fn read(&mut self) -> R;
 }
 
-pub struct ChangeReader<'a, T: Data + 'a>(Signal<'a, T>, ReaderToken);
+pub struct ChangeReader<'a, T: Data + 'a>(ValueSignal<'a, T>, ReaderToken);
 
 impl<'a, T: Data + 'a> Reader<'a, T, SingleComputationResult<T>> for ChangeReader<'a, T> {
-    fn new(signal: Signal<'a, T>) -> Self {
+    fn new(signal: ValueSignal<'a, T>) -> Self {
         let reader = signal.create_reader();
         Self(signal, reader)
     }
@@ -361,13 +364,13 @@ impl<'a, T: Data + 'a> Drop for ChangeReader<'a, T> {
 }
 
 pub struct CachedReader<'a, T: Data + 'a> {
-    signal: Signal<'a, T>,
+    signal: ValueSignal<'a, T>,
     token: ReaderToken,
     cache: T,
 }
 
 impl<'a, T: Data + 'a> Reader<'a, T, (bool, T)> for CachedReader<'a, T> {
-    fn new(signal: Signal<'a, T>) -> Self {
+    fn new(signal: ValueSignal<'a, T>) -> Self {
         let token = signal.create_reader();
         let initial_value = signal.compute(token).unwrap_changed();
         Self {

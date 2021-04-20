@@ -9,7 +9,7 @@ pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
 }
 
 impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
-    pub fn new(world: World, parent: Signal<'a, T>, initial: T, filter: F) -> Self {
+    pub fn new(world: World, parent: ValueSignal<'a, T>, initial: T, filter: F) -> Self {
         let node = OwnNode::new(world);
         info!("Filter signal created: {}", node.node());
         let source = ParentSignal::new(parent, node.node());

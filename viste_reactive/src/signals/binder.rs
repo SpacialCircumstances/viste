@@ -1,7 +1,7 @@
 use crate::signals::*;
 use crate::Data;
 
-pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> Signal<'a, O> + 'a> {
+pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> {
     binder: B,
     current_signal: ParentSignal<'a, O, SingleComputationResult<O>, ChangeReader<'a, O>>,
     parent: ParentSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
@@ -9,8 +9,8 @@ pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> Signal<'a, O> + 'a
     node: OwnNode,
 }
 
-impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> Signal<'a, O> + 'a> Binder<'a, I, O, B> {
-    pub fn new(world: World, parent: Signal<'a, I>, binder: B) -> Self {
+impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Binder<'a, I, O, B> {
+    pub fn new(world: World, parent: ValueSignal<'a, I>, binder: B) -> Self {
         let node = OwnNode::new(world);
         info!("Binder signal created: {}", node.node());
         let mut parent: ParentSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
@@ -28,7 +28,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> Signal<'a, O> + 'a> Binder<'a, 
     }
 }
 
-impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> Signal<'a, O> + 'a> ComputationCore<O>
+impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> ComputationCore<O>
     for Binder<'a, I, O, B>
 {
     type ComputationResult = SingleComputationResult<O>;

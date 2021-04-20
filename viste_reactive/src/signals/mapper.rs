@@ -9,7 +9,7 @@ pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
 }
 
 impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
-    pub fn new(world: World, source: Signal<'a, I>, mapper: M) -> Self {
+    pub fn new(world: World, source: ValueSignal<'a, I>, mapper: M) -> Self {
         let node = OwnNode::new(world);
         info!("Mapper signal created: {}", node.node());
         let mut source: ParentSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
@@ -73,7 +73,12 @@ pub struct Mapper2<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2)
 }
 
 impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> Mapper2<'a, I1, I2, O, M> {
-    pub fn new(world: World, source1: Signal<'a, I1>, source2: Signal<'a, I2>, mapper: M) -> Self {
+    pub fn new(
+        world: World,
+        source1: ValueSignal<'a, I1>,
+        source2: ValueSignal<'a, I2>,
+        mapper: M,
+    ) -> Self {
         let node = OwnNode::new(world);
         info!("Mapper2 signal created: {}", node.node());
         let mut source1: ParentSignal<'a, I1, (bool, I1), CachedReader<'a, I1>> =
