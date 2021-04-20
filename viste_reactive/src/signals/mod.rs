@@ -142,6 +142,44 @@ pub trait Signal<'a, T: Data + 'a, S: 'a> {
     fn is_dirty(&self) -> bool;
 }
 
+pub struct StreamSignal<'a, T: Data>(
+    Rc<RefCell<dyn ComputationCore<T, ComputationResult = Option<T>> + 'a>>,
+);
+
+impl<'a, T: Data + 'a> Signal<'a, T, Option<T>> for StreamSignal<'a, T> {
+    fn create<S: ComputationCore<T, ComputationResult = Option<T>> + 'a>(r: S) -> Self {
+        Self(Rc::new(RefCell::new(r)))
+    }
+
+    fn world(&self) -> World {
+        self.0.borrow().world().clone()
+    }
+
+    fn compute(&self, reader: ReaderToken) -> Option<T> {
+        self.0.borrow_mut().compute(reader)
+    }
+
+    fn add_dependency(&self, child: NodeIndex) {
+        self.0.borrow_mut().add_dependency(child)
+    }
+
+    fn remove_dependency(&self, child: NodeIndex) {
+        self.0.borrow_mut().remove_dependency(child)
+    }
+
+    fn create_reader(&self) -> ReaderToken {
+        self.0.borrow_mut().create_reader()
+    }
+
+    fn destroy_reader(&self, reader: ReaderToken) {
+        self.0.borrow_mut().destroy_reader(reader)
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.0.borrow().is_dirty()
+    }
+}
+
 pub struct ValueSignal<'a, T: Data>(
     Rc<RefCell<dyn ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>>,
 );
