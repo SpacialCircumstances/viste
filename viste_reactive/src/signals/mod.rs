@@ -10,7 +10,6 @@ use slab::Slab;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
 use std::rc::Rc;
 
 mod binder;
@@ -260,14 +259,13 @@ impl<'a, T: Data> Clone for ValueSignal<'a, T> {
     }
 }
 
-pub struct ParentSignal<'a, T: Data + 'a, S, R: Reader<'a, T, S>> {
+pub struct ParentSignal<'a, T: Data + 'a, S, R: Reader<'a, T, Result = S>> {
     parent: ValueSignal<'a, T>,
     own_index: NodeIndex,
     reader: R,
-    _data: PhantomData<S>,
 }
 
-impl<'a, T: Data + 'a, S, R: Reader<'a, T, S>> ParentSignal<'a, T, S, R> {
+impl<'a, T: Data + 'a, S, R: Reader<'a, T, Result = S>> ParentSignal<'a, T, S, R> {
     pub fn new(signal: ValueSignal<'a, T>, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
         let reader = R::new(signal.clone());
@@ -275,7 +273,6 @@ impl<'a, T: Data + 'a, S, R: Reader<'a, T, S>> ParentSignal<'a, T, S, R> {
             parent: signal,
             own_index,
             reader,
-            _data: PhantomData,
         }
     }
 
@@ -290,7 +287,7 @@ impl<'a, T: Data + 'a, S, R: Reader<'a, T, S>> ParentSignal<'a, T, S, R> {
     }
 }
 
-impl<'a, T: Data + 'a, S, R: Reader<'a, T, S>> Drop for ParentSignal<'a, T, S, R> {
+impl<'a, T: Data + 'a, S, R: Reader<'a, T, Result = S>> Drop for ParentSignal<'a, T, S, R> {
     fn drop(&mut self) {
         info!("Removing {} from parent", self.own_index);
         self.parent.remove_dependency(self.own_index);
@@ -422,20 +419,23 @@ fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
     value.unwrap_changed()
 }
 
-pub trait Reader<'a, T: Data + 'a, R> {
+pub trait Reader<'a, T: Data + 'a> {
+    type Result;
     fn new(signal: ValueSignal<'a, T>) -> Self;
-    fn read(&mut self) -> R;
+    fn read(&mut self) -> Self::Result;
 }
 
 pub struct ChangeReader<'a, T: Data + 'a>(ValueSignal<'a, T>, ReaderToken);
 
-impl<'a, T: Data + 'a> Reader<'a, T, SingleComputationResult<T>> for ChangeReader<'a, T> {
+impl<'a, T: Data + 'a> Reader<'a, T> for ChangeReader<'a, T> {
+    type Result = SingleComputationResult<T>;
+
     fn new(signal: ValueSignal<'a, T>) -> Self {
         let reader = signal.create_reader();
         Self(signal, reader)
     }
 
-    fn read(&mut self) -> SingleComputationResult<T> {
+    fn read(&mut self) -> Self::Result {
         self.0.compute(self.1)
     }
 }
@@ -452,7 +452,9 @@ pub struct CachedReader<'a, T: Data + 'a> {
     cache: T,
 }
 
-impl<'a, T: Data + 'a> Reader<'a, T, (bool, T)> for CachedReader<'a, T> {
+impl<'a, T: Data + 'a> Reader<'a, T> for CachedReader<'a, T> {
+    type Result = (bool, T);
+
     fn new(signal: ValueSignal<'a, T>) -> Self {
         let token = signal.create_reader();
         let initial_value = signal.compute(token).unwrap_changed();
