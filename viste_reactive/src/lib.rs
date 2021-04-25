@@ -275,13 +275,15 @@ impl<'a, T: Data> Clone for ValueSignal<'a, T> {
     }
 }
 
-pub struct ParentSignal<'a, T: Data + 'a, S, R: Reader<'a, T, Result = S>> {
+pub struct ParentSignal<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>> {
     parent: ValueSignal<'a, T>,
     own_index: NodeIndex,
     reader: R,
 }
 
-impl<'a, T: Data + 'a, S, R: Reader<'a, T, Result = S>> ParentSignal<'a, T, S, R> {
+impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>>
+    ParentSignal<'a, T, S, R>
+{
     pub fn new(signal: ValueSignal<'a, T>, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
         let reader = R::new(signal.clone());
@@ -303,7 +305,9 @@ impl<'a, T: Data + 'a, S, R: Reader<'a, T, Result = S>> ParentSignal<'a, T, S, R
     }
 }
 
-impl<'a, T: Data + 'a, S, R: Reader<'a, T, Result = S>> Drop for ParentSignal<'a, T, S, R> {
+impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>> Drop
+    for ParentSignal<'a, T, S, R>
+{
     fn drop(&mut self) {
         info!("Removing {} from parent", self.own_index);
         self.parent.remove_dependency(self.own_index);
@@ -435,16 +439,18 @@ fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
     value.unwrap_changed()
 }
 
-pub trait Reader<'a, T: Data + 'a> {
+pub trait Reader {
     type Result;
-    fn new(signal: ValueSignal<'a, T>) -> Self;
+    type Signal;
+    fn new(signal: Self::Signal) -> Self;
     fn read(&mut self) -> Self::Result;
 }
 
 pub struct ChangeReader<'a, T: Data + 'a>(ValueSignal<'a, T>, ReaderToken);
 
-impl<'a, T: Data + 'a> Reader<'a, T> for ChangeReader<'a, T> {
+impl<'a, T: Data + 'a> Reader for ChangeReader<'a, T> {
     type Result = SingleComputationResult<T>;
+    type Signal = ValueSignal<'a, T>;
 
     fn new(signal: ValueSignal<'a, T>) -> Self {
         let reader = signal.create_reader();
@@ -468,8 +474,9 @@ pub struct CachedReader<'a, T: Data + 'a> {
     cache: T,
 }
 
-impl<'a, T: Data + 'a> Reader<'a, T> for CachedReader<'a, T> {
+impl<'a, T: Data + 'a> Reader for CachedReader<'a, T> {
     type Result = (bool, T);
+    type Signal = ValueSignal<'a, T>;
 
     fn new(signal: ValueSignal<'a, T>) -> Self {
         let token = signal.create_reader();
