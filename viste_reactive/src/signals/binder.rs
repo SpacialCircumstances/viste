@@ -28,7 +28,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Binder
     }
 }
 
-impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> ComputationCore<O>
+impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> ComputationCore
     for Binder<'a, I, O, B>
 {
     type ComputationResult = SingleComputationResult<O>;

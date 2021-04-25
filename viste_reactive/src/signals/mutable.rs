@@ -23,7 +23,7 @@ impl<T: Data> Mutable<T> {
     }
 }
 
-impl<T: Data> ComputationCore<T> for Mutable<T> {
+impl<T: Data> ComputationCore for Mutable<T> {
     type ComputationResult = SingleComputationResult<T>;
 
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {

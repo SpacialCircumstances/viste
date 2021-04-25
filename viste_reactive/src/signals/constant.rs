@@ -17,7 +17,7 @@ impl<T: Data> Constant<T> {
     }
 }
 
-impl<T: Data> ComputationCore<T> for Constant<T> {
+impl<T: Data> ComputationCore for Constant<T> {
     type ComputationResult = SingleComputationResult<T>;
 
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {

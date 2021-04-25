@@ -120,7 +120,7 @@ impl<T: Data> SingleComputationResult<T> {
     }
 }
 
-pub trait ComputationCore<T: Data> {
+pub trait ComputationCore {
     type ComputationResult;
     fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult;
     fn create_reader(&mut self) -> ReaderToken;
@@ -131,8 +131,8 @@ pub trait ComputationCore<T: Data> {
     fn world(&self) -> &World;
 }
 
-pub trait Signal<'a, T: Data + 'a, S: 'a> {
-    fn create<C: ComputationCore<T, ComputationResult = S> + 'a>(r: C) -> Self;
+pub trait Signal<'a, S: 'a> {
+    fn create<C: ComputationCore<ComputationResult = S> + 'a>(r: C) -> Self;
     fn world(&self) -> World;
     fn compute(&self, reader: ReaderToken) -> S;
     fn add_dependency(&self, child: NodeIndex);
@@ -143,11 +143,11 @@ pub trait Signal<'a, T: Data + 'a, S: 'a> {
 }
 
 pub struct StreamSignal<'a, T: Data>(
-    Rc<RefCell<dyn ComputationCore<T, ComputationResult = Option<T>> + 'a>>,
+    Rc<RefCell<dyn ComputationCore<ComputationResult = Option<T>> + 'a>>,
 );
 
-impl<'a, T: Data + 'a> Signal<'a, T, Option<T>> for StreamSignal<'a, T> {
-    fn create<S: ComputationCore<T, ComputationResult = Option<T>> + 'a>(r: S) -> Self {
+impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
+    fn create<S: ComputationCore<ComputationResult = Option<T>> + 'a>(r: S) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
 
@@ -181,11 +181,11 @@ impl<'a, T: Data + 'a> Signal<'a, T, Option<T>> for StreamSignal<'a, T> {
 }
 
 pub struct ValueSignal<'a, T: Data>(
-    Rc<RefCell<dyn ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>>,
+    Rc<RefCell<dyn ComputationCore<ComputationResult = SingleComputationResult<T>> + 'a>>,
 );
 
-impl<'a, T: Data + 'a> Signal<'a, T, SingleComputationResult<T>> for ValueSignal<'a, T> {
-    fn create<S: ComputationCore<T, ComputationResult = SingleComputationResult<T>> + 'a>(
+impl<'a, T: Data + 'a> Signal<'a, SingleComputationResult<T>> for ValueSignal<'a, T> {
+    fn create<S: ComputationCore<ComputationResult = SingleComputationResult<T>> + 'a>(
         r: S,
     ) -> Self {
         Self(Rc::new(RefCell::new(r)))
