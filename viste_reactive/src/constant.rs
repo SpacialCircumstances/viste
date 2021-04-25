@@ -1,5 +1,4 @@
-use crate::signals::*;
-use crate::Data;
+use crate::*;
 
 pub struct Constant<T: Data> {
     node: OwnNode,

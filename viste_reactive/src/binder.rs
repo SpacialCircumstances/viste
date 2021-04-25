@@ -1,5 +1,4 @@
-use crate::signals::*;
-use crate::Data;
+use crate::*;
 
 pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> {
     binder: B,

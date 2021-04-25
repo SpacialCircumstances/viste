@@ -1,39 +1,32 @@
-use crate::signals::*;
-use crate::Data;
+use crate::*;
+use log::info;
 
-pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
-    source: ParentSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
+pub struct Mutable<T: Data> {
     current_value: SingleValueStore<T>,
-    filter: F,
     node: OwnNode,
 }
 
-impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
-    pub fn new(world: World, parent: ValueSignal<'a, T>, initial: T, filter: F) -> Self {
+impl<T: Data> Mutable<T> {
+    pub fn new(world: World, initial: T) -> Self {
         let node = OwnNode::new(world);
-        info!("Filter signal created: {}", node.node());
-        let source = ParentSignal::new(parent, node.node());
+        info!("Mutable signal created: {}", node.node());
         Self {
-            source,
-            filter,
-            node,
             current_value: SingleValueStore::new(initial),
+            node,
         }
+    }
+
+    pub fn set(&mut self, value: T) {
+        self.current_value.set_value(value);
+        self.node.mark_dirty();
     }
 }
 
-impl<'a, T: Data + 'a, F: Fn(&T) -> bool + 'a> ComputationCore for Filter<'a, T, F> {
+impl<T: Data> ComputationCore for Mutable<T> {
     type ComputationResult = SingleComputationResult<T>;
 
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {
-        if self.node.is_dirty() {
-            self.node.clean();
-            if let SingleComputationResult::Changed(new_source) = self.source.compute() {
-                if (self.filter)(&new_source) {
-                    self.current_value.set_value(new_source);
-                }
-            }
-        }
+        self.node.clean();
         self.current_value.read(reader)
     }
 

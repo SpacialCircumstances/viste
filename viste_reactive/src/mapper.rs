@@ -1,5 +1,4 @@
-use crate::signals::*;
-use crate::Data;
+use crate::*;
 
 pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
     source: ParentSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
