@@ -1,9 +1,9 @@
-use crate::binder::Binder;
-use crate::constant::Constant;
-use crate::filter::Filter;
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
-use crate::mapper::{Mapper, Mapper2};
-use crate::mutable::Mutable;
+use crate::values::binder::Binder;
+use crate::values::constant::Constant;
+use crate::values::filter::Filter;
+use crate::values::mapper::{Mapper, Mapper2};
+use crate::values::mutable::Mutable;
 use log::info;
 use slab::Slab;
 use std::cell::RefCell;
@@ -11,12 +11,8 @@ use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
-mod binder;
-mod constant;
-mod filter;
 mod graph;
-mod mapper;
-mod mutable;
+mod values;
 
 pub trait Data: Debug {
     fn changed(&self, other: &Self) -> bool;
