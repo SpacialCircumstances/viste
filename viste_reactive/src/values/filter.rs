@@ -1,7 +1,7 @@
 use crate::*;
 
 pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
-    source: ParentSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
+    source: ParentValueSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
     current_value: SingleValueStore<T>,
     filter: F,
     node: OwnNode,
@@ -11,7 +11,7 @@ impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
     pub fn new(world: World, parent: ValueSignal<'a, T>, initial: T, filter: F) -> Self {
         let node = OwnNode::new(world);
         info!("Filter signal created: {}", node.node());
-        let source = ParentSignal::new(parent, node.node());
+        let source = ParentValueSignal::new(parent, node.node());
         Self {
             source,
             filter,

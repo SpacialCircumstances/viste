@@ -1,7 +1,7 @@
 use crate::*;
 
 pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
-    source: ParentSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
+    source: ParentValueSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
     current_value: SingleValueStore<O>,
     mapper: M,
     node: OwnNode,
@@ -11,8 +11,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
     pub fn new(world: World, source: ValueSignal<'a, I>, mapper: M) -> Self {
         let node = OwnNode::new(world);
         info!("Mapper signal created: {}", node.node());
-        let mut source: ParentSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
-            ParentSignal::new(source, node.node());
+        let mut source: ParentValueSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
+            ParentValueSignal::new(source, node.node());
         let current_value = SingleValueStore::new(mapper(source.compute().unwrap_changed()));
         Mapper {
             source,
@@ -62,8 +62,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> ComputationCore for Map
 }
 
 pub struct Mapper2<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a> {
-    source1: ParentSignal<'a, I1, (bool, I1), CachedReader<'a, I1>>,
-    source2: ParentSignal<'a, I2, (bool, I2), CachedReader<'a, I2>>,
+    source1: ParentValueSignal<'a, I1, (bool, I1), CachedReader<'a, I1>>,
+    source2: ParentValueSignal<'a, I2, (bool, I2), CachedReader<'a, I2>>,
     current_value: SingleValueStore<O>,
     mapper: M,
     node: OwnNode,
@@ -78,10 +78,10 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> Mapper2<'a, I1, I
     ) -> Self {
         let node = OwnNode::new(world);
         info!("Mapper2 signal created: {}", node.node());
-        let mut source1: ParentSignal<'a, I1, (bool, I1), CachedReader<'a, I1>> =
-            ParentSignal::new(source1, node.node());
-        let mut source2: ParentSignal<'a, I2, (bool, I2), CachedReader<'a, I2>> =
-            ParentSignal::new(source2, node.node());
+        let mut source1: ParentValueSignal<'a, I1, (bool, I1), CachedReader<'a, I1>> =
+            ParentValueSignal::new(source1, node.node());
+        let mut source2: ParentValueSignal<'a, I2, (bool, I2), CachedReader<'a, I2>> =
+            ParentValueSignal::new(source2, node.node());
         let initial_value = mapper(source1.compute().1, source2.compute().1);
         Self {
             mapper,

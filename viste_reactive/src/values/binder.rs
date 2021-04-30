@@ -2,8 +2,8 @@ use crate::*;
 
 pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> {
     binder: B,
-    current_signal: ParentSignal<'a, O, SingleComputationResult<O>, ChangeReader<'a, O>>,
-    parent: ParentSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
+    current_signal: ParentValueSignal<'a, O, SingleComputationResult<O>, ChangeReader<'a, O>>,
+    parent: ParentValueSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
     current_value: SingleValueStore<O>,
     node: OwnNode,
 }
@@ -12,10 +12,10 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Binder
     pub fn new(world: World, parent: ValueSignal<'a, I>, binder: B) -> Self {
         let node = OwnNode::new(world);
         info!("Binder signal created: {}", node.node());
-        let mut parent: ParentSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
-            ParentSignal::new(parent, node.node());
-        let mut initial_signal: ParentSignal<O, SingleComputationResult<O>, ChangeReader<O>> =
-            ParentSignal::new(binder(parent.compute().unwrap_changed()), node.node());
+        let mut parent: ParentValueSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
+            ParentValueSignal::new(parent, node.node());
+        let mut initial_signal: ParentValueSignal<O, SingleComputationResult<O>, ChangeReader<O>> =
+            ParentValueSignal::new(binder(parent.compute().unwrap_changed()), node.node());
         let current_value = SingleValueStore::new(initial_signal.compute().unwrap_changed());
         Binder {
             binder,
@@ -37,7 +37,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Comput
             self.node.clean();
             if let SingleComputationResult::Changed(new_source) = self.parent.compute() {
                 self.current_signal =
-                    ParentSignal::new((self.binder)(new_source), self.node.node());
+                    ParentValueSignal::new((self.binder)(new_source), self.node.node());
             }
             if let SingleComputationResult::Changed(new_value) = self.current_signal.compute() {
                 self.current_value.set_value(new_value)

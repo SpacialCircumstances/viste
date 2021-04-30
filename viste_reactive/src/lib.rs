@@ -271,14 +271,19 @@ impl<'a, T: Data> Clone for ValueSignal<'a, T> {
     }
 }
 
-pub struct ParentSignal<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>> {
+pub struct ParentValueSignal<
+    'a,
+    T: Data + 'a,
+    S,
+    R: Reader<Result = S, Signal = ValueSignal<'a, T>>,
+> {
     parent: ValueSignal<'a, T>,
     own_index: NodeIndex,
     reader: R,
 }
 
 impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>>
-    ParentSignal<'a, T, S, R>
+    ParentValueSignal<'a, T, S, R>
 {
     pub fn new(signal: ValueSignal<'a, T>, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
@@ -302,7 +307,7 @@ impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>>
 }
 
 impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>> Drop
-    for ParentSignal<'a, T, S, R>
+    for ParentValueSignal<'a, T, S, R>
 {
     fn drop(&mut self) {
         info!("Removing {} from parent", self.own_index);
