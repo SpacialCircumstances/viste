@@ -506,6 +506,31 @@ impl<'a, T: Data + 'a> Drop for CachedReader<'a, T> {
     }
 }
 
+pub struct StreamReader<'a, T: Data + 'a> {
+    signal: StreamSignal<'a, T>,
+    token: ReaderToken,
+}
+
+impl<'a, T: Data + 'a> Reader for StreamReader<'a, T> {
+    type Result = Option<T>;
+    type Signal = StreamSignal<'a, T>;
+
+    fn new(signal: Self::Signal) -> Self {
+        let token = signal.create_reader();
+        Self { signal, token }
+    }
+
+    fn read(&mut self) -> Self::Result {
+        self.signal.compute(self.token)
+    }
+}
+
+impl<'a, T: Data + 'a> Drop for StreamReader<'a, T> {
+    fn drop(&mut self) {
+        self.signal.destroy_reader(self.token)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
