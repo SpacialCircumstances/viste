@@ -36,8 +36,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Comput
         if self.node.is_dirty() {
             self.node.clean();
             if let SingleComputationResult::Changed(new_source) = self.parent.compute() {
-                self.current_signal =
-                    ParentValueSignal::new((self.binder)(new_source), self.node.node());
+                self.current_signal.set_parent((self.binder)(new_source));
             }
             if let SingleComputationResult::Changed(new_value) = self.current_signal.compute() {
                 self.current_value.set_value(new_value)
