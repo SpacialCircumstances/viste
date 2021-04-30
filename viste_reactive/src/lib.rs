@@ -86,18 +86,6 @@ impl World {
         let mut wd = self.0.borrow_mut();
         wd.dependencies.remove_edge(parent, child);
     }
-
-    pub fn mutable<'a, T: Data + 'a>(&self, initial: T) -> (impl Fn(T), ValueSignal<'a, T>) {
-        let m = Mutable::new(self.clone(), initial);
-        let signal = Rc::new(RefCell::new(m));
-        let s = signal.clone();
-        let mutator = move |v| s.borrow_mut().set(v);
-        (mutator, ValueSignal(signal))
-    }
-
-    pub fn constant<'a, T: Data + 'a>(&self, value: T) -> ValueSignal<'a, T> {
-        ValueSignal::create(Constant::new(self.clone(), value))
-    }
 }
 
 impl Default for World {
@@ -255,6 +243,18 @@ impl<'a, T: Data + 'a> Debug for ValueSignal<'a, T> {
         let value = read_once(self);
         write!(f, "Signal {{ dirty: {}, value: {:?} }}", dirty, value)
     }
+}
+
+pub fn mutable<'a, T: Data + 'a>(world: &World, initial: T) -> (impl Fn(T), ValueSignal<'a, T>) {
+    let m = Mutable::new(world.clone(), initial);
+    let signal = Rc::new(RefCell::new(m));
+    let s = signal.clone();
+    let mutator = move |v| s.borrow_mut().set(v);
+    (mutator, ValueSignal(signal))
+}
+
+pub fn constant<'a, T: Data + 'a>(world: &World, value: T) -> ValueSignal<'a, T> {
+    ValueSignal::create(Constant::new(world.clone(), value))
 }
 
 pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(T1, T2) -> O + 'a>(
@@ -508,7 +508,7 @@ mod tests {
     #[test]
     fn test_map() {
         let world = World::new();
-        let (set, v) = world.mutable(3);
+        let (set, v) = mutable(&world, 3);
         let map1 = v.map(|x| x + 1);
         let map2 = v.map(|x| x + 2);
         assert_eq!(4, read_once(&map1));
@@ -521,8 +521,8 @@ mod tests {
     #[test]
     fn test_map2() {
         let world = World::new();
-        let (set1, v1) = world.mutable(0);
-        let (set2, v2) = world.mutable(0);
+        let (set1, v1) = mutable(&world, 0);
+        let (set2, v2) = mutable(&world, 0);
         let mapped = map2(&v1, &v2, |x, y| x + y);
         assert_eq!(0, read_once(&mapped));
         set1(1);
@@ -538,8 +538,8 @@ mod tests {
     #[test]
     fn test_map2_constant() {
         let world = World::new();
-        let (set1, v1) = world.mutable(0);
-        let v2 = world.constant(1);
+        let (set1, v1) = mutable(&world, 0);
+        let v2 = constant(&world, 1);
         let mapped = map2(&v1, &v2, |x, y| x + y);
         assert_eq!(1, read_once(&mapped));
         set1(1);
@@ -554,7 +554,7 @@ mod tests {
     #[test]
     fn test_filter() {
         let world = World::new();
-        let (set, v) = world.mutable(0);
+        let (set, v) = mutable(&world, 0);
         let filtered = v.filter(|x| x % 2 == 0, 0);
         assert_eq!(0, read_once(&filtered));
         set(1);
@@ -570,8 +570,8 @@ mod tests {
     #[test]
     fn test_bind() {
         let world = World::new();
-        let c = world.constant(2);
-        let (set, v) = world.mutable(0);
+        let c = constant(&world, 2);
+        let (set, v) = mutable(&world, 0);
         let bound = v.bind(move |x| c.map(move |v| v + x));
         assert_eq!(2, read_once(&bound));
         set(2);
@@ -583,9 +583,9 @@ mod tests {
     #[test]
     fn test_bind2() {
         let world = World::new();
-        let (set1, v1) = world.mutable(1);
-        let (set2, v2) = world.mutable(2);
-        let (switch, switcher) = world.mutable(false);
+        let (set1, v1) = mutable(&world, 1);
+        let (set2, v2) = mutable(&world, 2);
+        let (switch, switcher) = mutable(&world, false);
         let b = switcher.bind(move |b| if b { v1.clone() } else { v2.clone() });
         assert_eq!(2, read_once(&b));
         switch(true);
