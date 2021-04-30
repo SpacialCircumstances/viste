@@ -142,9 +142,15 @@ pub trait Signal<'a, S: 'a> {
     fn is_dirty(&self) -> bool;
 }
 
-pub struct StreamSignal<'a, T: Data>(
+pub struct StreamSignal<'a, T: Data + 'a>(
     Rc<RefCell<dyn ComputationCore<ComputationResult = Option<T>> + 'a>>,
 );
+
+impl<'a, T: Data + 'a> Clone for StreamSignal<'a, T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
     fn create<S: ComputationCore<ComputationResult = Option<T>> + 'a>(r: S) -> Self {
@@ -528,6 +534,50 @@ impl<'a, T: Data + 'a> Reader for StreamReader<'a, T> {
 impl<'a, T: Data + 'a> Drop for StreamReader<'a, T> {
     fn drop(&mut self) {
         self.signal.destroy_reader(self.token)
+    }
+}
+
+pub struct ParentStreamSignal<
+    'a,
+    T: Data + 'a,
+    S,
+    R: Reader<Result = S, Signal = StreamSignal<'a, T>>,
+> {
+    parent: StreamSignal<'a, T>,
+    own_index: NodeIndex,
+    reader: R,
+}
+
+impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = StreamSignal<'a, T>>>
+    ParentStreamSignal<'a, T, S, R>
+{
+    pub fn new(signal: StreamSignal<'a, T>, own_index: NodeIndex) -> Self {
+        signal.add_dependency(own_index);
+        let reader = R::new(signal.clone());
+        Self {
+            parent: signal,
+            own_index,
+            reader,
+        }
+    }
+
+    pub fn set_parent(&mut self, signal: StreamSignal<'a, T>) {
+        self.parent.remove_dependency(self.own_index);
+        signal.add_dependency(self.own_index);
+        self.parent = signal;
+    }
+
+    pub fn compute(&mut self) -> S {
+        self.reader.read()
+    }
+}
+
+impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = StreamSignal<'a, T>>> Drop
+    for ParentStreamSignal<'a, T, S, R>
+{
+    fn drop(&mut self) {
+        info!("Removing {} from parent", self.own_index);
+        self.parent.remove_dependency(self.own_index);
     }
 }
 
