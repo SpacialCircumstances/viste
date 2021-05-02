@@ -13,6 +13,7 @@ use std::rc::Rc;
 
 mod graph;
 mod values;
+mod streams;
 
 pub trait Data: Debug {
     fn changed(&self, other: &Self) -> bool;
@@ -183,6 +184,12 @@ impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
 
     fn is_dirty(&self) -> bool {
         self.0.borrow().is_dirty()
+    }
+}
+
+impl<'a, T: Data + 'a> StreamSignal<'a, T> {
+    pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> StreamSignal<'a, R> {
+        StreamSignal::create(streams::mapper::Mapper::new(self.world(), self.clone(), mapper))
     }
 }
 
