@@ -1,4 +1,5 @@
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
+use crate::streams::last::Last;
 use crate::streams::portal::Portal;
 use crate::values::binder::Binder;
 use crate::values::constant::Constant;
@@ -195,6 +196,10 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
             self.clone(),
             mapper,
         ))
+    }
+
+    pub fn last(&self, initial: T) -> ValueSignal<'a, T> {
+        ValueSignal::create(Last::new(self.world(), self.clone(), initial))
     }
 }
 
