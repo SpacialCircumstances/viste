@@ -1,4 +1,5 @@
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
+use crate::streams::portal::Portal;
 use crate::values::binder::Binder;
 use crate::values::constant::Constant;
 use crate::values::filter::Filter;
@@ -12,8 +13,8 @@ use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
 mod graph;
-mod values;
 mod streams;
+mod values;
 
 pub trait Data: Debug {
     fn changed(&self, other: &Self) -> bool;
@@ -189,7 +190,11 @@ impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
 
 impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> StreamSignal<'a, R> {
-        StreamSignal::create(streams::mapper::Mapper::new(self.world(), self.clone(), mapper))
+        StreamSignal::create(streams::mapper::Mapper::new(
+            self.world(),
+            self.clone(),
+            mapper,
+        ))
     }
 }
 
@@ -256,6 +261,14 @@ impl<'a, T: Data + 'a> Debug for ValueSignal<'a, T> {
         let value = read_once(self);
         write!(f, "Signal {{ dirty: {}, value: {:?} }}", dirty, value)
     }
+}
+
+pub fn portal<'a, T: Data + 'a>(world: &World) -> (impl Fn(T), StreamSignal<'a, T>) {
+    let p = Portal::new(world.clone());
+    let signal = Rc::new(RefCell::new(p));
+    let s = signal.clone();
+    let pusher = move |v| s.borrow_mut().send(v);
+    (pusher, StreamSignal(signal))
 }
 
 pub fn mutable<'a, T: Data + 'a>(world: &World, initial: T) -> (impl Fn(T), ValueSignal<'a, T>) {
