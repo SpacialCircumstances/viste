@@ -558,6 +558,16 @@ pub struct StreamReader<'a, T: Data + 'a> {
     token: ReaderToken,
 }
 
+pub struct StreamReaderIter<'a, T: Data + 'a>(StreamReader<'a, T>);
+
+impl<'a, T: Data + 'a> Iterator for StreamReaderIter<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.read()
+    }
+}
+
 impl<'a, T: Data + 'a> Reader for StreamReader<'a, T> {
     type Result = Option<T>;
     type Signal = StreamSignal<'a, T>;
@@ -569,6 +579,15 @@ impl<'a, T: Data + 'a> Reader for StreamReader<'a, T> {
 
     fn read(&mut self) -> Self::Result {
         self.signal.compute(self.token)
+    }
+}
+
+impl<'a, T: Data + 'a> IntoIterator for StreamReader<'a, T> {
+    type Item = T;
+    type IntoIter = StreamReaderIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        StreamReaderIter(self)
     }
 }
 
