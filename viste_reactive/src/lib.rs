@@ -771,4 +771,38 @@ mod tests {
         switch(true);
         assert_eq!(4, read_once(&b));
     }
+
+    #[test]
+    fn test_stream() {
+        let world = World::new();
+        let (send, s1) = portal(&world);
+        let res = s1.last(0);
+        assert_eq!(0, read_once(&res));
+        send(1);
+        assert_eq!(1, read_once(&res));
+        send(2);
+        send(3);
+        assert_eq!(3, read_once(&res));
+    }
+
+    fn collect_all<T: Data>(coll: &Collector<T>) -> Vec<T> {
+        coll.iter().map(|t| t.cheap_clone()).collect()
+    }
+
+    #[test]
+    fn test_collect() {
+        let world = World::new();
+        let (send, s1) = portal(&world);
+        let mut collector = s1.collect();
+        assert_eq!(collect_all(&collector), Vec::new());
+        send(1);
+        assert_eq!(collect_all(&collector), Vec::new());
+        collector.update();
+        assert_eq!(collect_all(&collector), vec![1]);
+        send(2);
+        send(3);
+        send(4);
+        collector.update();
+        assert_eq!(collect_all(&collector), vec![1, 2, 3, 4]);
+    }
 }
