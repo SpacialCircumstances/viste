@@ -213,6 +213,10 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn cached(&self) -> StreamSignal<'a, T> {
         StreamSignal::create(streams::cached::Cached::new(self.world(), self.clone()))
     }
+
+    pub fn collect(&self) -> Collector<'a, T> {
+        Collector::new(StreamReader::new(self.clone()))
+    }
 }
 
 pub struct ValueSignal<'a, T: Data>(
@@ -638,6 +642,34 @@ impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = StreamSignal<'a, T>>> D
     fn drop(&mut self) {
         info!("Removing {} from parent", self.own_index);
         self.parent.remove_dependency(self.own_index);
+    }
+}
+
+pub struct Collector<'a, T: Data + 'a> {
+    reader: StreamReader<'a, T>,
+    items: Vec<T>,
+}
+
+impl<'a, T: Data + 'a> Collector<'a, T> {
+    pub fn new(reader: StreamReader<'a, T>) -> Self {
+        Self {
+            reader,
+            items: Vec::new(),
+        }
+    }
+
+    pub fn update(&mut self) {
+        while let Some(next) = self.reader.read() {
+            self.items.push(next);
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.items.iter()
     }
 }
 
