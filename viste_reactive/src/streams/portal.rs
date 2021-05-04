@@ -14,7 +14,8 @@ impl<'a, T: Data + 'a> Portal<T> {
     }
 
     pub fn send(&mut self, value: T) {
-        self.store.push(value)
+        self.store.push(value);
+        self.node.mark_dirty();
     }
 }
 
