@@ -201,6 +201,14 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn last(&self, initial: T) -> ValueSignal<'a, T> {
         ValueSignal::create(Last::new(self.world(), self.clone(), initial))
     }
+
+    pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F) -> StreamSignal<'a, T> {
+        StreamSignal::create(streams::filter::Filter::new(
+            self.world(),
+            self.clone(),
+            filter,
+        ))
+    }
 }
 
 pub struct ValueSignal<'a, T: Data>(
