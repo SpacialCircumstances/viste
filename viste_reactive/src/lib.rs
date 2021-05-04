@@ -266,6 +266,10 @@ impl<'a, T: Data + 'a> ValueSignal<'a, T> {
     ) -> ValueSignal<'a, O> {
         ValueSignal::create(Binder::new(self.world(), self.clone(), binder))
     }
+
+    pub fn changed(&self) -> StreamSignal<'a, T> {
+        StreamSignal::create(streams::changed::Changed::new(self.world(), self.clone()))
+    }
 }
 
 impl<'a, T: Data + 'a> Debug for ValueSignal<'a, T> {
