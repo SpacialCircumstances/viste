@@ -209,6 +209,10 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
             filter,
         ))
     }
+
+    pub fn cached(&self) -> StreamSignal<'a, T> {
+        StreamSignal::create(streams::cached::Cached::new(self.world(), self.clone()))
+    }
 }
 
 pub struct ValueSignal<'a, T: Data>(
