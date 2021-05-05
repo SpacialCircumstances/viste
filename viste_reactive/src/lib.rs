@@ -349,7 +349,8 @@ impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>>
     pub fn set_parent(&mut self, signal: ValueSignal<'a, T>) {
         self.parent.remove_dependency(self.own_index);
         signal.add_dependency(self.own_index);
-        self.parent = signal;
+        self.parent = signal.clone();
+        self.reader = R::new(signal);
     }
 
     pub fn compute(&mut self) -> S {
