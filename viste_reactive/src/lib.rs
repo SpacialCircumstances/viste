@@ -800,10 +800,46 @@ mod tests {
         assert_eq!(collect_all(&collector), Vec::new());
         collector.update();
         assert_eq!(collect_all(&collector), vec![1]);
+        collector.clear();
         send(2);
         send(3);
         send(4);
         collector.update();
-        assert_eq!(collect_all(&collector), vec![1, 2, 3, 4]);
+        assert_eq!(collect_all(&collector), vec![2, 3, 4]);
+    }
+
+    #[test]
+    fn test_stream_map() {
+        let world = World::new();
+        let (send, s1) = portal(&world);
+        let mut c = s1.map(|v| v + 1).last(0);
+        assert_eq!(read_once(&c), 0);
+        send(1);
+        assert_eq!(read_once(&c), 2);
+        send(2);
+        send(3);
+        send(4);
+        assert_eq!(read_once(&c), 5);
+    }
+
+    #[test]
+    fn test_stream_filter() {
+        let world = World::new();
+        let (send, s1) = portal::<i32>(&world);
+        let mut filtered = s1.filter(|v| v % 2 == 0).collect();
+        assert_eq!(Vec::<i32>::new(), collect_all(&filtered));
+        send(1);
+        filtered.update();
+        assert_eq!(Vec::<i32>::new(), collect_all(&filtered));
+        send(0);
+        filtered.update();
+        assert_eq!(vec![0], collect_all(&filtered));
+        send(1);
+        send(2);
+        send(3);
+        send(5);
+        send(6);
+        filtered.update();
+        assert_eq!(vec![0, 2, 6], collect_all(&filtered));
     }
 }
