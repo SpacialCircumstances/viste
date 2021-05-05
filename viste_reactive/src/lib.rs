@@ -842,4 +842,40 @@ mod tests {
         filtered.update();
         assert_eq!(vec![0, 2, 6], collect_all(&filtered));
     }
+
+    #[test]
+    fn test_stream_changed() {
+        let world = World::new();
+        let (set, v1) = mutable(&world, 0);
+        let mut changes: Collector<i32> = v1.changed().collect();
+        changes.update();
+        assert_eq!(vec![0], collect_all(&changes));
+        set(1);
+        changes.clear();
+        changes.update();
+        assert_eq!(vec![1], collect_all(&changes));
+        set(2);
+        set(3);
+        changes.update();
+        assert_eq!(vec![1, 3], collect_all(&changes));
+    }
+
+    #[test]
+    fn test_stream_cached() {
+        let world = World::new();
+        let (send, raw) = portal(&world);
+        let mut cached: Collector<i32> = raw.cached().collect();
+        cached.update();
+        assert_eq!(Vec::<i32>::new(), collect_all(&cached));
+        send(1);
+        send(1);
+        cached.update();
+        assert_eq!(vec![1], collect_all(&cached));
+        send(2);
+        send(3);
+        send(4);
+        send(3);
+        cached.update();
+        assert_eq!(vec![1, 2, 3, 4, 3], collect_all(&cached));
+    }
 }
