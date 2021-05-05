@@ -878,4 +878,20 @@ mod tests {
         cached.update();
         assert_eq!(vec![1, 2, 3, 4, 3], collect_all(&cached));
     }
+
+    #[test]
+    fn test_multiple_streams() {
+        let world = World::new();
+        let (send, s1) = portal(&world);
+        let m1 = s1.map(|i| i + 1).last(0);
+        let m2 = s1.map(|i| i + 2).last(0);
+        assert_eq!(0, read_once(&m1));
+        assert_eq!(0, read_once(&m2));
+        send(1);
+        assert_eq!(2, read_once(&m1));
+        assert_eq!(3, read_once(&m2));
+        send(3);
+        assert_eq!(4, read_once(&m1));
+        assert_eq!(5, read_once(&m2));
+    }
 }
