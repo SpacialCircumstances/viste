@@ -1,5 +1,4 @@
-use crate::signals::*;
-use crate::Data;
+use crate::*;
 use log::info;
 
 pub struct Mutable<T: Data> {
@@ -23,7 +22,7 @@ impl<T: Data> Mutable<T> {
     }
 }
 
-impl<T: Data> ComputationCore<T> for Mutable<T> {
+impl<T: Data> ComputationCore for Mutable<T> {
     type ComputationResult = SingleComputationResult<T>;
 
     fn compute(&mut self, reader: ReaderToken) -> SingleComputationResult<T> {
