@@ -189,6 +189,12 @@ impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
     }
 }
 
+impl<'a, T: Data> PartialEq for StreamSignal<'a, T> {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> StreamSignal<'a, R> {
         StreamSignal::create(streams::mapper::Mapper::new(
@@ -222,6 +228,12 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
 pub struct ValueSignal<'a, T: Data>(
     Rc<RefCell<dyn ComputationCore<ComputationResult = SingleComputationResult<T>> + 'a>>,
 );
+
+impl<'a, T: Data> PartialEq for ValueSignal<'a, T> {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 impl<'a, T: Data + 'a> Signal<'a, SingleComputationResult<T>> for ValueSignal<'a, T> {
     fn create<S: ComputationCore<ComputationResult = SingleComputationResult<T>> + 'a>(
