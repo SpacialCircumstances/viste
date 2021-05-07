@@ -292,6 +292,12 @@ impl<'a, T: Data + 'a> ValueSignal<'a, T> {
     }
 }
 
+impl<'a, T: Data + 'a> ValueSignal<'a, ValueSignal<'a, T>> {
+    pub fn flatten(&self) -> ValueSignal<'a, T> {
+        self.bind(|v| v)
+    }
+}
+
 impl<'a, T: Data + 'a> Debug for ValueSignal<'a, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let dirty = self.is_dirty();
