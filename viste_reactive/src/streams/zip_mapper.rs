@@ -20,8 +20,8 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>
         mapper: M,
     ) -> Self {
         let node = OwnNode::new(world);
-        let mut source1 = ParentStreamSignal::new(source1, node.node());
-        let mut source2 = ParentStreamSignal::new(source2, node.node());
+        let source1 = ParentStreamSignal::new(source1, node.node());
+        let source2 = ParentStreamSignal::new(source2, node.node());
         Self {
             cached_value1: None,
             cached_value2: None,

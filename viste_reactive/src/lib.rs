@@ -813,8 +813,14 @@ mod tests {
         assert_eq!(3, read_once(&res));
     }
 
-    fn collect_all<T: Data>(coll: &Collector<T>) -> Vec<T> {
+    fn collect_current<T: Data>(coll: &Collector<T>) -> Vec<T> {
         coll.iter().map(|t| t.cheap_clone()).collect()
+    }
+
+    fn collect_all<T: Data>(coll: &mut Collector<T>) -> Vec<T> {
+        coll.clear();
+        coll.update();
+        collect_current(&coll)
     }
 
     #[test]
@@ -822,17 +828,17 @@ mod tests {
         let world = World::new();
         let (send, s1) = portal(&world);
         let mut collector = s1.collect();
-        assert_eq!(collect_all(&collector), Vec::new());
+        assert_eq!(collect_current(&collector), Vec::new());
         send(1);
-        assert_eq!(collect_all(&collector), Vec::new());
+        assert_eq!(collect_current(&collector), Vec::new());
         collector.update();
-        assert_eq!(collect_all(&collector), vec![1]);
+        assert_eq!(collect_current(&collector), vec![1]);
         collector.clear();
         send(2);
         send(3);
         send(4);
         collector.update();
-        assert_eq!(collect_all(&collector), vec![2, 3, 4]);
+        assert_eq!(collect_current(&collector), vec![2, 3, 4]);
     }
 
     #[test]
@@ -854,20 +860,20 @@ mod tests {
         let world = World::new();
         let (send, s1) = portal::<i32>(&world);
         let mut filtered = s1.filter(|v| v % 2 == 0).collect();
-        assert_eq!(Vec::<i32>::new(), collect_all(&filtered));
+        assert_eq!(Vec::<i32>::new(), collect_current(&filtered));
         send(1);
         filtered.update();
-        assert_eq!(Vec::<i32>::new(), collect_all(&filtered));
+        assert_eq!(Vec::<i32>::new(), collect_current(&filtered));
         send(0);
         filtered.update();
-        assert_eq!(vec![0], collect_all(&filtered));
+        assert_eq!(vec![0], collect_current(&filtered));
         send(1);
         send(2);
         send(3);
         send(5);
         send(6);
         filtered.update();
-        assert_eq!(vec![0, 2, 6], collect_all(&filtered));
+        assert_eq!(vec![0, 2, 6], collect_current(&filtered));
     }
 
     #[test]
@@ -876,15 +882,15 @@ mod tests {
         let (set, v1) = mutable(&world, 0);
         let mut changes: Collector<i32> = v1.changed().collect();
         changes.update();
-        assert_eq!(vec![0], collect_all(&changes));
+        assert_eq!(vec![0], collect_current(&changes));
         set(1);
         changes.clear();
         changes.update();
-        assert_eq!(vec![1], collect_all(&changes));
+        assert_eq!(vec![1], collect_current(&changes));
         set(2);
         set(3);
         changes.update();
-        assert_eq!(vec![1, 3], collect_all(&changes));
+        assert_eq!(vec![1, 3], collect_current(&changes));
     }
 
     #[test]
@@ -893,17 +899,17 @@ mod tests {
         let (send, raw) = portal(&world);
         let mut cached: Collector<i32> = raw.cached().collect();
         cached.update();
-        assert_eq!(Vec::<i32>::new(), collect_all(&cached));
+        assert_eq!(Vec::<i32>::new(), collect_current(&cached));
         send(1);
         send(1);
         cached.update();
-        assert_eq!(vec![1], collect_all(&cached));
+        assert_eq!(vec![1], collect_current(&cached));
         send(2);
         send(3);
         send(4);
         send(3);
         cached.update();
-        assert_eq!(vec![1, 2, 3, 4, 3], collect_all(&cached));
+        assert_eq!(vec![1, 2, 3, 4, 3], collect_current(&cached));
     }
 
     #[test]
@@ -920,5 +926,27 @@ mod tests {
         send(3);
         assert_eq!(4, read_once(&m1));
         assert_eq!(5, read_once(&m2));
+    }
+
+    #[test]
+    fn test_stream_zip_map() {
+        let world = World::new();
+        let (push1, s1) = portal(&world);
+        let (push2, s2) = portal(&world);
+        let r = zip_map(&s1, &s2, |i1, i2| (i1, i2));
+        let mut coll: Collector<(i32, i32)> = r.collect();
+        assert_eq!(Vec::<(i32, i32)>::new(), collect_all(&mut coll));
+        push1(1);
+        push1(2);
+        assert_eq!(Vec::<(i32, i32)>::new(), collect_all(&mut coll));
+        push2(1);
+        assert_eq!(vec![(1, 1)], collect_all(&mut coll));
+        push2(3);
+        assert_eq!(vec![(2, 3)], collect_all(&mut coll));
+        push2(4);
+        assert_eq!(Vec::<(i32, i32)>::new(), collect_all(&mut coll));
+        push1(0);
+        push2(0);
+        assert_eq!(vec![(0, 4)], collect_all(&mut coll));
     }
 }
