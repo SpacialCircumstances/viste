@@ -1,6 +1,7 @@
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
 use crate::streams::last::Last;
 use crate::streams::portal::Portal;
+use crate::streams::zip_mapper::ZipMapper;
 use crate::values::binder::Binder;
 use crate::values::constant::Constant;
 use crate::values::filter::Filter;
@@ -332,6 +333,14 @@ pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(T1, T2) -> O +
     mapper: M,
 ) -> ValueSignal<'a, O> {
     ValueSignal::create(Mapper2::new(s1.world(), s1.clone(), s2.clone(), mapper))
+}
+
+pub fn zip_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>(
+    s1: &StreamSignal<'a, I1>,
+    s2: &StreamSignal<'a, I2>,
+    mapper: M,
+) -> StreamSignal<'a, O> {
+    StreamSignal::create(ZipMapper::new(s1.world(), s1.clone(), s2.clone(), mapper))
 }
 
 impl<'a, T: Data> Clone for ValueSignal<'a, T> {
