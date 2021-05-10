@@ -809,7 +809,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bind2() {
+    fn test_bind_complex() {
         let world = World::new();
         let (set1, v1) = mutable(&world, 1);
         let (set2, v2) = mutable(&world, 2);
@@ -826,6 +826,39 @@ mod tests {
         assert_eq!(6, read_once(&b));
         switch(true);
         assert_eq!(4, read_once(&b));
+    }
+
+    #[test]
+    fn test_bind2() {
+        let world = World::new();
+        let (set1, v1) = mutable(&world, 1);
+        let (set2, v2) = mutable(&world, 2);
+        let (set_sw1, sw1) = mutable(&world, false);
+        let (set_sw2, sw2) = mutable(&world, false);
+        let res = bind2(
+            &sw1,
+            &sw2,
+            move |b1, b2| {
+                if b1 && b2 {
+                    v1.clone()
+                } else {
+                    v2.clone()
+                }
+            },
+        );
+        assert_eq!(2, read_once(&res));
+        set2(4);
+        assert_eq!(4, read_once(&res));
+        set_sw1(true);
+        assert_eq!(4, read_once(&res));
+        set_sw2(true);
+        assert_eq!(1, read_once(&res));
+        set2(5);
+        assert_eq!(1, read_once(&res));
+        set1(6);
+        assert_eq!(6, read_once(&res));
+        set_sw1(false);
+        assert_eq!(5, read_once(&res));
     }
 
     #[test]
