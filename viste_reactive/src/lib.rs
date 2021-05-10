@@ -466,6 +466,12 @@ impl Drop for OwnNode {
     }
 }
 
+//Should this also contain the read method and the type?
+pub trait Store {
+    fn create_reader(&mut self) -> ReaderToken;
+    fn destroy_reader(&mut self, reader: ReaderToken);
+}
+
 pub struct SingleValueStore<T: Data> {
     value: T,
     reader_states: Slab<bool>,
@@ -477,15 +483,6 @@ impl<T: Data> SingleValueStore<T> {
             value,
             reader_states: Slab::new(),
         }
-    }
-
-    pub fn create_reader(&mut self) -> ReaderToken {
-        let reader = self.reader_states.insert(false);
-        ReaderToken(reader)
-    }
-
-    pub fn destroy_reader(&mut self, reader: ReaderToken) {
-        self.reader_states.remove(reader.0);
     }
 
     pub fn set_value(&mut self, value: T) {
@@ -509,8 +506,19 @@ impl<T: Data> SingleValueStore<T> {
     }
 }
 
+impl<T: Data> Store for SingleValueStore<T> {
+    fn create_reader(&mut self) -> ReaderToken {
+        let reader = self.reader_states.insert(false);
+        ReaderToken(reader)
+    }
+
+    fn destroy_reader(&mut self, reader: ReaderToken) {
+        self.reader_states.remove(reader.0);
+    }
+}
+
 pub struct BufferedStore<T: Data> {
-    //TODO: Optimize with single queue and position as state
+    //TODO: Optimize with single queue and position as state?
     reader_states: Slab<VecDeque<T>>,
 }
 
@@ -521,14 +529,6 @@ impl<T: Data> BufferedStore<T> {
         }
     }
 
-    pub fn create_reader(&mut self) -> ReaderToken {
-        ReaderToken(self.reader_states.insert(VecDeque::new()))
-    }
-
-    pub fn destroy_reader(&mut self, reader: ReaderToken) {
-        self.reader_states.remove(reader.0);
-    }
-
     pub fn read(&mut self, reader: ReaderToken) -> Option<T> {
         self.reader_states[reader.0].pop_front()
     }
@@ -537,6 +537,16 @@ impl<T: Data> BufferedStore<T> {
         self.reader_states
             .iter_mut()
             .for_each(|(_, rs)| rs.push_back(value.cheap_clone()))
+    }
+}
+
+impl<T: Data> Store for BufferedStore<T> {
+    fn create_reader(&mut self) -> ReaderToken {
+        ReaderToken(self.reader_states.insert(VecDeque::new()))
+    }
+
+    fn destroy_reader(&mut self, reader: ReaderToken) {
+        self.reader_states.remove(reader.0);
     }
 }
 
