@@ -1,4 +1,5 @@
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
+use crate::streams::combine_mapper::CombineMapper;
 use crate::streams::last::Last;
 use crate::streams::portal::Portal;
 use crate::streams::zip_mapper::ZipMapper;
@@ -341,6 +342,19 @@ pub fn zip_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> 
     mapper: M,
 ) -> StreamSignal<'a, O> {
     StreamSignal::create(ZipMapper::new(s1.world(), s1.clone(), s2.clone(), mapper))
+}
+
+pub fn combine_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>(
+    s1: &StreamSignal<'a, I1>,
+    s2: &StreamSignal<'a, I2>,
+    mapper: M,
+) -> StreamSignal<'a, O> {
+    StreamSignal::create(CombineMapper::new(
+        s1.world(),
+        s1.clone(),
+        s2.clone(),
+        mapper,
+    ))
 }
 
 impl<'a, T: Data> Clone for ValueSignal<'a, T> {
@@ -948,5 +962,25 @@ mod tests {
         push1(0);
         push2(0);
         assert_eq!(vec![(0, 4)], collect_all(&mut coll));
+    }
+
+    #[test]
+    fn test_stream_combine_map() {
+        let world = World::new();
+        let (push1, s1) = portal(&world);
+        let (push2, s2) = portal(&world);
+        let c = combine_map(&s1, &s2, |v1, v2| (v1, v2));
+        let mut coll = c.collect();
+        push1(1);
+        assert_eq!(Vec::<(i32, i32)>::new(), collect_all(&mut coll));
+        push2(2);
+        assert_eq!(vec![(1, 2)], collect_all(&mut coll));
+        push1(3);
+        assert_eq!(vec![(3, 2)], collect_all(&mut coll));
+        push1(4);
+        assert_eq!(vec![(4, 2)], collect_all(&mut coll));
+        push1(5);
+        push2(5);
+        assert_eq!(vec![(5, 5)], collect_all(&mut coll));
     }
 }
