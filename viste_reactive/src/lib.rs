@@ -3,7 +3,7 @@ use crate::streams::combine_mapper::CombineMapper;
 use crate::streams::last::Last;
 use crate::streams::portal::Portal;
 use crate::streams::zip_mapper::ZipMapper;
-use crate::values::binder::Binder;
+use crate::values::binder::{Binder, Binder2};
 use crate::values::constant::Constant;
 use crate::values::filter::Filter;
 use crate::values::mapper::{Mapper, Mapper2};
@@ -334,6 +334,20 @@ pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(T1, T2) -> O +
     mapper: M,
 ) -> ValueSignal<'a, O> {
     ValueSignal::create(Mapper2::new(s1.world(), s1.clone(), s2.clone(), mapper))
+}
+
+pub fn bind2<
+    'a,
+    I1: Data + 'a,
+    I2: Data + 'a,
+    O: Data + 'a,
+    B: Fn(I1, I2) -> ValueSignal<'a, O> + 'a,
+>(
+    s1: &ValueSignal<'a, I1>,
+    s2: &ValueSignal<'a, I2>,
+    binder: B,
+) -> ValueSignal<'a, O> {
+    ValueSignal::create(Binder2::new(s1.world(), s1.clone(), s2.clone(), binder))
 }
 
 pub fn zip_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>(
