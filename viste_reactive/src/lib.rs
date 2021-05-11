@@ -225,6 +225,17 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn collect(&self) -> Collector<'a, T> {
         Collector::new(StreamReader::new(self.clone()))
     }
+
+    pub fn filter_map<O: Data + 'a, F: Fn(T) -> Option<O> + 'a>(
+        &self,
+        fmap: F,
+    ) -> StreamSignal<'a, O> {
+        StreamSignal::create(streams::filter_mapper::FilterMapper::new(
+            self.world(),
+            self.clone(),
+            fmap,
+        ))
+    }
 }
 
 pub struct ValueSignal<'a, T: Data>(

@@ -2,6 +2,7 @@ pub mod cached;
 pub mod changed;
 pub mod combine_mapper;
 pub mod filter;
+pub mod filter_mapper;
 pub mod last;
 pub mod mapper;
 pub mod portal;
