@@ -278,7 +278,7 @@ impl<'a, T: Data + 'a> ValueSignal<'a, T> {
         ValueSignal::create(Mapper::new(self.world(), self.clone(), mapper))
     }
 
-    pub fn filter<F: Fn(&T) -> bool + 'a>(self, filter: F, initial: T) -> ValueSignal<'a, T> {
+    pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F, initial: T) -> ValueSignal<'a, T> {
         ValueSignal::create(Filter::new(self.world(), self.clone(), initial, filter))
     }
 
@@ -291,6 +291,19 @@ impl<'a, T: Data + 'a> ValueSignal<'a, T> {
 
     pub fn changed(&self) -> StreamSignal<'a, T> {
         StreamSignal::create(streams::changed::Changed::new(self.world(), self.clone()))
+    }
+
+    pub fn filter_map<O: Data + 'a, F: Fn(T) -> Option<O> + 'a>(
+        &self,
+        fmap: F,
+        initial: O,
+    ) -> ValueSignal<'a, O> {
+        ValueSignal::create(values::filter_mapper::FilterMapper::new(
+            self.world(),
+            self.clone(),
+            initial,
+            fmap,
+        ))
     }
 }
 
