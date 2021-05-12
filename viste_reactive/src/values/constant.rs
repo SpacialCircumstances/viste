@@ -1,3 +1,4 @@
+use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Constant<T: Data> {

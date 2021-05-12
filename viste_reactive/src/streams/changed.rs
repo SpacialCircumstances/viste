@@ -1,4 +1,5 @@
 use crate::readers::ChangeReader;
+use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Changed<'a, T: Data + 'a> {

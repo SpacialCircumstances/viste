@@ -1,3 +1,4 @@
+use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Portal<T: Data> {

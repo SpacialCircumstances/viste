@@ -1,5 +1,6 @@
 use crate::graph::NodeIndex;
 use crate::readers::StreamReader;
+use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Mapper<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> {

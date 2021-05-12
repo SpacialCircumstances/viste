@@ -1,4 +1,5 @@
 use crate::readers::StreamReader;
+use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct FilterMapper<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 'a> {

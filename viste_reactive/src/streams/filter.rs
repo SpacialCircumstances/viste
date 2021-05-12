@@ -1,4 +1,5 @@
 use crate::readers::StreamReader;
+use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {

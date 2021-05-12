@@ -1,4 +1,5 @@
 use crate::readers::{CachedReader, ChangeReader};
+use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> {

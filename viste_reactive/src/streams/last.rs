@@ -1,4 +1,5 @@
 use crate::readers::StreamReader;
+use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Last<'a, T: Data + 'a> {

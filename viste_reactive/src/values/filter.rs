@@ -1,4 +1,5 @@
 use crate::readers::ChangeReader;
+use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {

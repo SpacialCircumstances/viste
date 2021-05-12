@@ -1,4 +1,5 @@
 use crate::readers::StreamReader;
+use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Cached<'a, T: Data + 'a> {

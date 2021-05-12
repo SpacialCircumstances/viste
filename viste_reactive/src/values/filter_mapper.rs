@@ -1,4 +1,5 @@
 use crate::readers::ChangeReader;
+use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct FilterMapper<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 'a> {

@@ -1,4 +1,5 @@
 use crate::readers::StreamReader;
+use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct CombineMapper<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a> {
