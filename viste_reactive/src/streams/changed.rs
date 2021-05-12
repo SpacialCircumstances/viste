@@ -1,3 +1,4 @@
+use crate::readers::ChangeReader;
 use crate::*;
 
 pub struct Changed<'a, T: Data + 'a> {

@@ -1,3 +1,4 @@
+use crate::readers::{CachedReader, ChangeReader};
 use crate::*;
 
 pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {

@@ -1,3 +1,4 @@
+use crate::readers::StreamReader;
 use crate::*;
 
 pub struct Last<'a, T: Data + 'a> {
