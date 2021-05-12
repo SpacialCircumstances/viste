@@ -1064,4 +1064,37 @@ mod tests {
         push2(5);
         assert_eq!(vec![(5, 5)], collect_all(&mut coll));
     }
+
+    #[test]
+    fn test_filter_map() {
+        let world = World::new();
+        let (set, v) = mutable(&world, 0);
+        let fmapped = v.filter_map(|i| if i % 2 == 0 { Some(i) } else { None }, 0);
+        assert_eq!(0, read_once(&fmapped));
+        set(1);
+        assert_eq!(0, read_once(&fmapped));
+        set(2);
+        assert_eq!(2, read_once(&fmapped));
+        set(4);
+        assert_eq!(4, read_once(&fmapped));
+        set(5);
+        assert_eq!(4, read_once(&fmapped));
+    }
+
+    #[test]
+    fn test_filter_map_stream() {
+        let world = World::new();
+        let (send, s) = portal(&world);
+        let mut r = s
+            .filter_map(|i| if i % 2 == 0 { Some(i) } else { None })
+            .collect();
+        send(0);
+        assert_eq!(vec![0], collect_all(&mut r));
+        send(1);
+        send(2);
+        send(3);
+        send(4);
+        send(5);
+        assert_eq!(vec![2, 4], collect_all(&mut r));
+    }
 }
