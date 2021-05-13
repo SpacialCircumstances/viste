@@ -7,6 +7,7 @@ use crate::streams::zip_mapper::ZipMapper;
 use crate::values::binder::{Binder, Binder2};
 use crate::values::constant::Constant;
 use crate::values::filter::Filter;
+use crate::values::folder::Folder;
 use crate::values::mapper::{Mapper, Mapper2};
 use crate::values::mutable::Mutable;
 use log::info;
@@ -238,6 +239,14 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
             self.clone(),
             fmap,
         ))
+    }
+
+    pub fn fold<V: Data + 'a, F: Fn(V, T) -> V + 'a>(
+        &self,
+        folder: F,
+        initial: V,
+    ) -> ValueSignal<'a, V> {
+        ValueSignal::create(Folder::new(self.world(), self.clone(), initial, folder))
     }
 }
 
@@ -905,5 +914,19 @@ mod tests {
         send(4);
         send(5);
         assert_eq!(vec![2, 4], collect_all(&mut r));
+    }
+
+    #[test]
+    fn test_fold() {
+        let world = World::new();
+        let (send, s) = portal(&world);
+        let v = s.fold(|i, s| s + i, 0);
+        assert_eq!(0, read_once(&v));
+        send(1);
+        assert_eq!(1, read_once(&v));
+        send(4);
+        send(5);
+        send(2);
+        assert_eq!(12, read_once(&v));
     }
 }
