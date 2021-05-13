@@ -1,6 +1,7 @@
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
 use crate::readers::{Reader, StreamReader};
 use crate::streams::combine_mapper::CombineMapper;
+use crate::streams::from_iter::FromIter;
 use crate::streams::last::Last;
 use crate::streams::portal::Portal;
 use crate::streams::zip_mapper::ZipMapper;
@@ -350,6 +351,13 @@ pub fn portal<'a, T: Data + 'a>(world: &World) -> (impl Fn(T), StreamSignal<'a, 
     let s = signal.clone();
     let pusher = move |v| s.borrow_mut().send(v);
     (pusher, StreamSignal(signal))
+}
+
+pub fn iter_as_stream<'a, T: Data + 'a, I: Iterator<Item = T> + 'a>(
+    world: &World,
+    iter: I,
+) -> StreamSignal<'a, T> {
+    StreamSignal::create(FromIter::new(world.clone(), iter))
 }
 
 pub fn mutable<'a, T: Data + 'a>(world: &World, initial: T) -> (impl Fn(T), ValueSignal<'a, T>) {
