@@ -55,3 +55,42 @@ impl<'a, T: Data + 'a> ListSignal<'a, T> {
         ListSignal(self.0.map(lift(mapper)))
     }
 }
+
+pub struct RListSender<'a, T: Data + 'a> {
+    signal: ListSignal<'a, T>,
+    sender: Box<dyn Fn(ListChange<T>) + 'a>,
+}
+
+impl<'a, T: Data + 'a> RListSender<'a, T> {
+    pub fn new(world: &World) -> Self {
+        let (sender, signal) = portal(world);
+        RListSender {
+            sender: Box::new(sender),
+            signal: ListSignal(signal),
+        }
+    }
+
+    pub fn signal(&self) -> &ListSignal<'a, T> {
+        &self.signal
+    }
+
+    pub fn push(&mut self, item: T) {
+        (self.sender)(ListChange::Push(item))
+    }
+
+    pub fn clear(&mut self) {
+        (self.sender)(ListChange::Clear)
+    }
+
+    pub fn remove(&mut self, idx: usize) {
+        (self.sender)(ListChange::Remove(idx))
+    }
+
+    pub fn swap(&mut self, i1: usize, i2: usize) {
+        (self.sender)(ListChange::Swap(i1, i2))
+    }
+
+    pub fn insert(&mut self, idx: usize, item: T) {
+        (self.sender)(ListChange::Insert(item, idx))
+    }
+}
