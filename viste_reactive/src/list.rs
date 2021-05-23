@@ -94,3 +94,45 @@ impl<'a, T: Data + 'a> RListSender<'a, T> {
         (self.sender)(ListChange::Insert(item, idx))
     }
 }
+
+pub struct RList<'a, T: Data + 'a> {
+    collector: Collector<'a, ListChange<T>>,
+    store: Vec<T>,
+}
+
+impl<'a, T: Data> RList<'a, T> {
+    pub fn new(signal: ListSignal<'a, T>) -> Self {
+        Self {
+            collector: signal.0.collect(),
+            store: Vec::new(),
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.collector.update();
+        // TODO: Expose a drain method on collector
+        let store = &mut self.store;
+
+        self.collector
+            .items
+            .drain(..)
+            .for_each(|change| match change {
+                ListChange::Push(item) => store.push(item),
+                ListChange::Clear => store.clear(),
+                ListChange::Insert(item, idx) => store.insert(idx, item),
+                ListChange::Remove(idx) => {
+                    store.remove(idx);
+                }
+                ListChange::Swap(i1, i2) => store.swap(i1, i2),
+            });
+        self.collector.clear();
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.store.iter()
+    }
+
+    pub fn store(&self) -> &Vec<T> {
+        &self.store
+    }
+}
