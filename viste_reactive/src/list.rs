@@ -95,12 +95,12 @@ impl<'a, T: Data + 'a> RListSender<'a, T> {
     }
 }
 
-pub struct RList<'a, T: Data + 'a> {
+pub struct RListView<'a, T: Data + 'a> {
     collector: Collector<'a, ListChange<T>>,
     store: Vec<T>,
 }
 
-impl<'a, T: Data> RList<'a, T> {
+impl<'a, T: Data> RListView<'a, T> {
     pub fn new(signal: ListSignal<'a, T>) -> Self {
         Self {
             collector: signal.0.collect(),
