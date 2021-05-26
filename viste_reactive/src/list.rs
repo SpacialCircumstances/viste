@@ -186,4 +186,36 @@ impl<'a, T: Data + 'a> RList<'a, T> {
         self.store.insert(idx, item.cheap_clone());
         self.sender.insert(idx, item);
     }
+
+    pub fn truncate(&mut self, len: usize) {
+        for i in len..self.store.len() {
+            self.sender.remove(i);
+        }
+        self.store.truncate(len);
+    }
+
+    pub fn swap_remove(&mut self, idx: usize) {
+        let last_idx = self.store.len() - 1;
+        self.store.swap_remove(idx);
+        self.sender.swap(idx, last_idx);
+        self.sender.remove(last_idx);
+    }
+
+    pub fn retain<F: FnMut(&T) -> bool>(&mut self, f: F) {
+        for (idx, el) in self.store.iter().enumerate() {
+            if !f(el) {
+                self.sender.remove(idx);
+            }
+        }
+        self.store.retain(f);
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        if self.store.is_empty() {
+            return None;
+        }
+        let last_idx = self.store.len() - 1;
+        self.sender.remove(last_idx);
+        self.store.pop()
+    }
 }
