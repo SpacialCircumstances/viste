@@ -201,7 +201,7 @@ impl<'a, T: Data + 'a> RList<'a, T> {
         self.sender.remove(last_idx);
     }
 
-    pub fn retain<F: FnMut(&T) -> bool>(&mut self, f: F) {
+    pub fn retain<F: FnMut(&T) -> bool>(&mut self, mut f: F) {
         for (idx, el) in self.store.iter().enumerate() {
             if !f(el) {
                 self.sender.remove(idx);
