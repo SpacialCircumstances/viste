@@ -62,6 +62,10 @@ impl<'a, T: Data + 'a> ListSignal<'a, T> {
     pub fn changes(&self) -> StreamSignal<'a, ListChange<T>> {
         self.0.clone()
     }
+
+    pub fn view(&self) -> RListView<'a, T> {
+        RListView::new(self.clone())
+    }
 }
 
 pub struct RListSender<'a, T: Data + 'a> {
@@ -143,6 +147,14 @@ impl<'a, T: Data> RListView<'a, T> {
     pub fn store(&self) -> &Vec<T> {
         &self.store
     }
+
+    pub fn len(&self) -> usize {
+        self.store.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.store.is_empty()
+    }
 }
 
 pub struct RList<'a, T: Data + 'a> {
@@ -168,6 +180,14 @@ impl<'a, T: Data + 'a> RList<'a, T> {
 
     pub fn store(&self) -> &Vec<T> {
         &self.store
+    }
+
+    pub fn len(&self) -> usize {
+        self.store.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.store.is_empty()
     }
 
     pub fn push(&mut self, item: T) {
