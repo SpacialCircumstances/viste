@@ -51,8 +51,16 @@ pub fn lift<A: Data, B: Data, F: Fn(A) -> B>(func: F) -> impl Fn(ListChange<A>) 
 }
 
 impl<'a, T: Data + 'a> ListSignal<'a, T> {
+    pub fn new(stream: StreamSignal<'a, ListChange<T>>) -> Self {
+        ListSignal(stream)
+    }
+
     pub fn map<O: Data + 'a, M: Fn(T) -> O + 'a>(&self, mapper: M) -> ListSignal<'a, O> {
-        ListSignal(self.0.map(lift(mapper)))
+        ListSignal::new(self.0.map(lift(mapper)))
+    }
+
+    pub fn changes(&self) -> StreamSignal<'a, ListChange<T>> {
+        self.0.clone()
     }
 }
 
