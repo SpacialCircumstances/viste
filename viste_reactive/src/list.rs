@@ -247,3 +247,23 @@ impl<'a, T: Data + 'a> RList<'a, T> {
         self.store.pop()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::list::*;
+    use crate::*;
+
+    #[test]
+    fn simple_push() {
+        let world = World::new();
+        let mut sender = RList::new(&world);
+        let mut rec = sender.signal().view();
+        assert!(rec.is_empty());
+        assert!(sender.is_empty());
+        sender.push(2);
+        assert_eq!(1, sender.len());
+        assert!(rec.is_empty());
+        rec.update();
+        assert_eq!(1, rec.len());
+    }
+}
