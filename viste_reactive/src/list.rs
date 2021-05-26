@@ -136,3 +136,54 @@ impl<'a, T: Data> RListView<'a, T> {
         &self.store
     }
 }
+
+pub struct RList<'a, T: Data + 'a> {
+    sender: RListSender<'a, T>,
+    store: Vec<T>,
+}
+
+impl<'a, T: Data + 'a> RList<'a, T> {
+    pub fn new(world: &World) -> Self {
+        Self {
+            sender: RListSender::new(world),
+            store: Vec::new(),
+        }
+    }
+
+    pub fn signal(&self) -> &ListSignal<'a, T> {
+        self.sender.signal()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.store.iter()
+    }
+
+    pub fn store(&self) -> &Vec<T> {
+        &self.store
+    }
+
+    pub fn push(&mut self, item: T) {
+        self.store.push(item.cheap_clone());
+        self.sender.push(item)
+    }
+
+    pub fn remove(&mut self, idx: usize) {
+        self.store.remove(idx);
+        self.sender.remove(idx);
+    }
+
+    pub fn clear(&mut self) {
+        self.store.clear();
+        self.sender.clear();
+    }
+
+    pub fn swap(&mut self, i1: usize, i2: usize) {
+        self.store.swap(i1, i2);
+        self.sender.swap(i1, i2);
+    }
+
+    pub fn insert(&mut self, idx: usize, item: T) {
+        self.store.insert(idx, item.cheap_clone());
+        self.sender.insert(idx, item);
+    }
+}
