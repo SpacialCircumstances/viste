@@ -266,4 +266,18 @@ mod tests {
         rec.update();
         assert_eq!(1, rec.len());
     }
+
+    #[test]
+    fn mapped() {
+        let world = World::new();
+        let mut sender = RList::new(&world);
+        let mut rec = sender.signal().map(|i| i + 1).view();
+        assert!(rec.is_empty());
+        assert!(sender.is_empty());
+        sender.push(1);
+        assert_eq!(1, sender.len());
+        rec.update();
+        assert_eq!(1, rec.len());
+        assert_eq!(2, rec.store()[0]);
+    }
 }
