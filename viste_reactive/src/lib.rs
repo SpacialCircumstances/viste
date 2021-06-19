@@ -18,6 +18,7 @@ use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
+pub mod collections;
 mod graph;
 pub mod list;
 pub mod readers;
