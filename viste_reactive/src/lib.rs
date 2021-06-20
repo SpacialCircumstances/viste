@@ -42,6 +42,33 @@ impl<T: Debug + Clone + PartialEq> Data for T {
     }
 }
 
+#[derive(Debug)]
+pub struct UniqueData<T: Data>(T);
+
+impl<T: Data> UniqueData<T> {
+    pub fn new(t: T) -> Self {
+        Self(t)
+    }
+
+    pub fn deconstruct(self) -> T {
+        self.0
+    }
+
+    pub fn get(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: Data> Data for UniqueData<T> {
+    fn changed(&self, _other: &Self) -> bool {
+        true
+    }
+
+    fn cheap_clone(&self) -> Self {
+        UniqueData(self.0.cheap_clone())
+    }
+}
+
 struct WorldData {
     dependencies: Graph<bool>,
 }
