@@ -1,4 +1,6 @@
 use crate::*;
+use std::collections::HashSet;
+use std::hash::Hash;
 
 #[derive(Debug)]
 pub enum SetChange<T: Data> {
@@ -111,5 +113,46 @@ impl<'a, T: Data + 'a> CollectionPortal<'a, T> {
 
     pub fn clear(&mut self) {
         (self.sender)(SetChange::Clear)
+    }
+}
+
+pub struct HashSetView<'a, T: Data + Hash + Eq + 'a> {
+    collector: Collector<'a, SetChange<T>>,
+    data: HashSet<T>,
+}
+
+impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
+    pub fn new(signal: CollectionSignal<'a, T>) -> Self {
+        Self {
+            collector: signal.0.collect(),
+            data: HashSet::new(),
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.collector.update();
+        let store = &mut self.data;
+
+        self.collector
+            .items
+            .drain(..)
+            .for_each(|change| match change {
+                SetChange::Added(t) => {
+                    store.insert(t);
+                }
+                SetChange::Removed(t) => {
+                    store.remove(&t);
+                }
+                SetChange::Clear => store.clear(),
+            });
+        self.collector.clear();
+    }
+
+    pub fn data(&self) -> &HashSet<T> {
+        &self.data
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.data.iter()
     }
 }
