@@ -58,6 +58,29 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
             })
             .into()
     }
+
+    pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F) -> CollectionSignal<'a, T> {
+        self.0
+            .filter(move |c| match c {
+                SetChange::Added(t) => filter(t),
+                SetChange::Removed(t) => filter(t),
+                SetChange::Clear => true,
+            })
+            .into()
+    }
+
+    pub fn filter_map<O: Data + 'a, F: Fn(T) -> Option<O> + 'a>(
+        &self,
+        f: F,
+    ) -> CollectionSignal<'a, O> {
+        self.0
+            .filter_map(move |c| match c {
+                SetChange::Added(t) => f(t).map(|o| SetChange::Added(o)),
+                SetChange::Removed(t) => f(t).map(|o| SetChange::Removed(o)),
+                SetChange::Clear => Some(SetChange::Clear),
+            })
+            .into()
+    }
 }
 
 pub struct CollectionPortal<'a, T: Data + 'a> {
