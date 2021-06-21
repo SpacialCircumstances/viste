@@ -43,3 +43,34 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
         self.0.clone()
     }
 }
+
+pub struct CollectionPortal<'a, T: Data + 'a> {
+    signal: CollectionSignal<'a, T>,
+    sender: Box<dyn Fn(SetChange<T>) + 'a>,
+}
+
+impl<'a, T: Data + 'a> CollectionPortal<'a, T> {
+    pub fn new(world: &World) -> Self {
+        let (sender, signal) = portal(world);
+        CollectionPortal {
+            sender: Box::new(sender),
+            signal: CollectionSignal(signal),
+        }
+    }
+
+    pub fn signal(&self) -> &CollectionSignal<'a, T> {
+        &self.signal
+    }
+
+    pub fn add(&mut self, t: T) {
+        (self.sender)(SetChange::Added(t))
+    }
+
+    pub fn remove(&mut self, t: T) {
+        (self.sender)(SetChange::Removed(t))
+    }
+
+    pub fn clear(&mut self) {
+        (self.sender)(SetChange::Clear)
+    }
+}
