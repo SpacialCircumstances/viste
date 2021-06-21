@@ -43,9 +43,9 @@ impl<T: Debug + Clone + PartialEq> Data for T {
 }
 
 #[derive(Debug)]
-pub struct UniqueData<T: Data>(T);
+pub struct Distinct<T: Data>(T);
 
-impl<T: Data> UniqueData<T> {
+impl<T: Data> Distinct<T> {
     pub fn new(t: T) -> Self {
         Self(t)
     }
@@ -59,13 +59,13 @@ impl<T: Data> UniqueData<T> {
     }
 }
 
-impl<T: Data> Data for UniqueData<T> {
+impl<T: Data> Data for Distinct<T> {
     fn changed(&self, _other: &Self) -> bool {
         true
     }
 
     fn cheap_clone(&self) -> Self {
-        UniqueData(self.0.cheap_clone())
+        Distinct(self.0.cheap_clone())
     }
 }
 
