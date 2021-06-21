@@ -34,6 +34,12 @@ impl<'a, T: Data + 'a> Clone for CollectionSignal<'a, T> {
     }
 }
 
+impl<'a, T: Data + 'a> From<StreamSignal<'a, SetChange<T>>> for CollectionSignal<'a, T> {
+    fn from(stream: StreamSignal<'a, SetChange<T>>) -> Self {
+        CollectionSignal::new(stream)
+    }
+}
+
 impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
     pub fn new(stream: StreamSignal<'a, SetChange<T>>) -> Self {
         CollectionSignal(stream)
@@ -41,6 +47,16 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
 
     pub fn changes(&self) -> StreamSignal<'a, SetChange<T>> {
         self.0.clone()
+    }
+
+    pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> CollectionSignal<'a, R> {
+        self.0
+            .map(move |c| match c {
+                SetChange::Added(t) => SetChange::Added(mapper(t)),
+                SetChange::Removed(t) => SetChange::Removed(mapper(t)),
+                SetChange::Clear => SetChange::Clear,
+            })
+            .into()
     }
 }
 
