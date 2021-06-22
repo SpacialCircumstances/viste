@@ -1,5 +1,5 @@
 use crate::*;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
 
 #[derive(Debug)]
@@ -189,11 +189,62 @@ impl<'a, T: Data + Eq + Ord + 'a> BTreeView<'a, T> {
         self.collector.clear();
     }
 
-    pub fn data(&self) -> &BtreeSet<T> {
+    pub fn data(&self) -> &BTreeSet<T> {
         &self.data
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.data.iter()
+    }
+}
+
+pub struct HashMapView<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> {
+    collector: Collector<'a, SetChange<T>>,
+    key_func: Box<dyn Fn(&T) -> K + 'a>,
+    value_func: Box<dyn Fn(T) -> V + 'a>,
+    data: HashMap<K, V>,
+}
+
+impl<'a, T: Data + 'a, K: Data + Hash + Eq + 'a, V: Data + 'a> HashMapView<'a, T, K, V> {
+    pub fn new<KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
+        signal: CollectionSignal<'a, T>,
+        key_func: KF,
+        value_func: VF,
+    ) -> Self {
+        Self {
+            collector: signal.0.collect(),
+            data: HashMap::new(),
+            key_func: Box::new(key_func),
+            value_func: Box::new(value_func),
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.collector.update();
+        let store = &mut self.data;
+        let kf = &self.key_func;
+        let vf = &self.value_func;
+
+        self.collector
+            .items
+            .drain(..)
+            .for_each(|change| match change {
+                SetChange::Added(t) => {
+                    store.insert((kf)(&t), (vf)(t));
+                }
+                SetChange::Removed(t) => {
+                    store.remove(&(kf)(&t));
+                }
+                SetChange::Clear => store.clear(),
+            });
+        self.collector.clear();
+    }
+
+    pub fn data(&self) -> &HashMap<K, V> {
+        &self.data
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.data.iter()
     }
 }
