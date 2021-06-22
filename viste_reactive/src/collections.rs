@@ -1,5 +1,5 @@
 use crate::*;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::hash::Hash;
 
 #[derive(Debug)]
@@ -149,6 +149,47 @@ impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
     }
 
     pub fn data(&self) -> &HashSet<T> {
+        &self.data
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.data.iter()
+    }
+}
+
+pub struct BTreeView<'a, T: Data + Eq + Ord + 'a> {
+    collector: Collector<'a, SetChange<T>>,
+    data: BTreeSet<T>,
+}
+
+impl<'a, T: Data + Eq + Ord + 'a> BTreeView<'a, T> {
+    pub fn new(signal: CollectionSignal<'a, T>) -> Self {
+        Self {
+            collector: signal.0.collect(),
+            data: BTreeSet::new(),
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.collector.update();
+        let store = &mut self.data;
+
+        self.collector
+            .items
+            .drain(..)
+            .for_each(|change| match change {
+                SetChange::Added(t) => {
+                    store.insert(t);
+                }
+                SetChange::Removed(t) => {
+                    store.remove(&t);
+                }
+                SetChange::Clear => store.clear(),
+            });
+        self.collector.clear();
+    }
+
+    pub fn data(&self) -> &BtreeSet<T> {
         &self.data
     }
 
