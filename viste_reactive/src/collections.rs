@@ -299,3 +299,51 @@ impl<'a, T: Data + 'a, K: Data + Ord + Eq + 'a, V: Data + 'a> BTreeMapView<'a, T
         self.data.iter()
     }
 }
+
+pub struct VecIndexView<'a, T: Data + 'a> {
+    collector: Collector<'a, SetChange<T>>,
+    index_func: Box<dyn Fn(&T) -> usize + 'a>,
+    data: Vec<Option<T>>,
+}
+
+impl<'a, T: Data + 'a> VecIndexView<'a, T> {
+    pub fn new<IF: Fn(&T) -> usize + 'a>(signal: CollectionSignal<'a, T>, index_func: IF) -> Self {
+        Self {
+            collector: signal.0.collect(),
+            data: Vec::new(),
+            index_func: Box::new(index_func),
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.collector.update();
+        let store = &mut self.data;
+        let idxf = &self.index_func;
+
+        self.collector
+            .items
+            .drain(..)
+            .for_each(|change| match change {
+                SetChange::Added(t) => {
+                    let idx: usize = idxf(&t);
+                    if store.len() <= idx {
+                        store.resize_with(idx + 1, || None);
+                    }
+                    store[idx] = Some(t);
+                }
+                SetChange::Removed(t) => {
+                    store[idxf(&t)] = None;
+                }
+                SetChange::Clear => store.clear(),
+            });
+        self.collector.clear();
+    }
+
+    pub fn data(&self) -> &Vec<Option<T>> {
+        &self.data
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Option<T>> {
+        self.data.iter()
+    }
+}
