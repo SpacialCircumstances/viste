@@ -347,3 +347,57 @@ impl<'a, T: Data + 'a> VecIndexView<'a, T> {
         self.data.iter()
     }
 }
+
+pub struct OrderedVecView<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> {
+    data: Vec<(K, T)>,
+    key_func: Box<dyn Fn(&T) -> K + 'a>,
+    collector: Collector<'a, SetChange<T>>,
+}
+
+impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
+    pub fn new<KF: Fn(&T) -> K + 'a>(signal: CollectionSignal<'a, T>, key_func: KF) -> Self {
+        OrderedVecView {
+            data: Vec::new(),
+            key_func: Box::new(key_func),
+            collector: signal.0.collect(),
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.collector.update();
+        let store = &mut self.data;
+        let keyf = &self.key_func;
+
+        self.collector
+            .items
+            .drain(..)
+            .for_each(|change| match change {
+                SetChange::Added(t) => {
+                    let key = keyf(&t);
+                    match store.binary_search_by_key(&key, |(k, _)| *k) {
+                        Ok(existing_idx) => store[existing_idx] = (key, t),
+                        Err(new_idx) => store.insert(new_idx, (key, t)),
+                    }
+                }
+                SetChange::Removed(t) => {
+                    let key = keyf(&t);
+                    match store.binary_search_by_key(&key, |(k, v)| *k) {
+                        Ok(existing_idx) => {
+                            store.remove(existing_idx);
+                        }
+                        Err(_) => (), //Should we panic?
+                    }
+                }
+                SetChange::Clear => store.clear(),
+            });
+        self.collector.clear();
+    }
+
+    pub fn data(&self) -> &Vec<(K, T)> {
+        &self.data
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &(K, T)> {
+        self.data.iter()
+    }
+}
