@@ -83,6 +83,50 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
             })
             .into()
     }
+
+    pub fn view_set_hash(&self) -> HashSetView<'a, T>
+    where
+        T: Hash + Eq,
+    {
+        HashSetView::new(self.clone())
+    }
+
+    pub fn view_set_btree(&self) -> BTreeSetView<'a, T>
+    where
+        T: Ord + Eq,
+    {
+        BTreeSetView::new(self.clone())
+    }
+
+    pub fn view_map_hash<K: Hash + Eq + 'a, V: 'a, KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
+        &self,
+        key_func: KF,
+        value_func: VF,
+    ) -> HashMapView<'a, T, K, V> {
+        HashMapView::new(self.clone(), key_func, value_func)
+    }
+
+    pub fn view_map_btree<K: Ord + Eq + 'a, V: 'a, KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
+        &self,
+        key_func: KF,
+        value_func: VF,
+    ) -> BTreeMapView<'a, T, K, V> {
+        BTreeMapView::new(self.clone(), key_func, value_func)
+    }
+
+    pub fn view_vec_indexed<IF: Fn(&T) -> usize + 'a>(
+        &self,
+        index_func: IF,
+    ) -> VecIndexView<'a, T> {
+        VecIndexView::new(self.clone(), index_func)
+    }
+
+    pub fn view_vec_sorted<K: Copy + Ord + Eq + Data, KF: Fn(&T) -> K + 'a>(
+        &self,
+        key_func: KF,
+    ) -> OrderedVecView<'a, T, K> {
+        OrderedVecView::new(self.clone(), key_func)
+    }
 }
 
 pub struct CollectionPortal<'a, T: Data + 'a> {
@@ -400,4 +444,10 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
     pub fn iter(&self) -> impl Iterator<Item = &(K, T)> {
         self.data.iter()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_hashset_view() {}
 }
