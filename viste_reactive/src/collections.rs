@@ -205,7 +205,7 @@ pub struct HashMapView<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> {
     data: HashMap<K, V>,
 }
 
-impl<'a, T: Data + 'a, K: Data + Hash + Eq + 'a, V: Data + 'a> HashMapView<'a, T, K, V> {
+impl<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> HashMapView<'a, T, K, V> {
     pub fn new<KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
         signal: CollectionSignal<'a, T>,
         key_func: KF,
