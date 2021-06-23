@@ -256,7 +256,7 @@ pub struct BTreeMapView<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> {
     data: BTreeMap<K, V>,
 }
 
-impl<'a, T: Data + 'a, K: Data + Ord + Eq + 'a, V: Data + 'a> BTreeMapView<'a, T, K, V> {
+impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> BTreeMapView<'a, T, K, V> {
     pub fn new<KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
         signal: CollectionSignal<'a, T>,
         key_func: KF,
