@@ -381,7 +381,7 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
                 }
                 SetChange::Removed(t) => {
                     let key = keyf(&t);
-                    match store.binary_search_by_key(&key, |(k, v)| *k) {
+                    match store.binary_search_by_key(&key, |(k, _)| *k) {
                         Ok(existing_idx) => {
                             store.remove(existing_idx);
                         }
