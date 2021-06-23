@@ -157,12 +157,12 @@ impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
     }
 }
 
-pub struct BTreeView<'a, T: Data + Eq + Ord + 'a> {
+pub struct BTreeSetView<'a, T: Data + Eq + Ord + 'a> {
     collector: Collector<'a, SetChange<T>>,
     data: BTreeSet<T>,
 }
 
-impl<'a, T: Data + Eq + Ord + 'a> BTreeView<'a, T> {
+impl<'a, T: Data + Eq + Ord + 'a> BTreeSetView<'a, T> {
     pub fn new(signal: CollectionSignal<'a, T>) -> Self {
         Self {
             collector: signal.0.collect(),
