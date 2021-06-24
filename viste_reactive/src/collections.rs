@@ -536,4 +536,116 @@ mod tests {
         view.update();
         assert!(view.unchanged_data().is_empty());
     }
+
+    #[test]
+    fn test_btreeset_view() {
+        let world = World::new();
+        let mut setp = CollectionPortal::new(&world);
+        let mut view = setp.signal().view_set_btree();
+        assert!(view.unchanged_data().is_empty());
+        setp.add(2);
+        view.update();
+        assert!(view.unchanged_data().contains(&2));
+        setp.remove(2);
+        setp.add(3);
+        view.update();
+        assert!(!view.unchanged_data().contains(&2));
+        setp.clear();
+        view.update();
+        assert!(view.unchanged_data().is_empty());
+    }
+
+    #[test]
+    fn test_hashmap_view() {
+        let world = World::new();
+        let mut setp: CollectionPortal<(i32, i32)> = CollectionPortal::new(&world);
+        let mut view = setp.signal().view_map_hash(|(a, _)| *a, |(_, b)| b);
+        assert!(view.data().is_empty());
+        setp.add((2, 3));
+        assert!(view.data().contains_key(&2));
+        setp.remove((2, 3));
+        setp.add((4, 3));
+        assert!(!view.data().contains_key(&2));
+        assert_eq!(3, view.data()[&4]);
+        setp.add((4, 2));
+        assert_eq!(2, view.data()[&4]);
+        setp.clear();
+        assert!(view.data().is_empty());
+    }
+
+    #[test]
+    fn test_btreemap_view() {
+        let world = World::new();
+        let mut setp: CollectionPortal<(i32, i32)> = CollectionPortal::new(&world);
+        let mut view = setp.signal().view_map_btree(|(a, _)| *a, |(_, b)| b);
+        assert!(view.data().is_empty());
+        setp.add((2, 3));
+        assert!(view.data().contains_key(&2));
+        setp.remove((2, 3));
+        setp.add((4, 3));
+        assert!(!view.data().contains_key(&2));
+        assert_eq!(3, view.data()[&4]);
+        setp.add((4, 2));
+        assert_eq!(2, view.data()[&4]);
+        setp.clear();
+        assert!(view.data().is_empty());
+    }
+
+    #[test]
+    fn test_vec_indexed() {
+        let world = World::new();
+        let mut setp: CollectionPortal<(i32, i32)> = CollectionPortal::new(&world);
+        let mut view = setp
+            .signal()
+            .view_vec_indexed(|(a, _)| *a as usize, |(_, b)| b);
+        setp.add((0, 2));
+        setp.add((1, 3));
+        setp.add((3, 2));
+        assert_eq!(view.data(), &vec![Some(2), Some(3), None, Some(2)]);
+        setp.remove((1, 3));
+        assert_eq!(view.data(), &vec![Some(2), None, None, Some(2)]);
+        setp.add((0, 4));
+        assert_eq!(view.data(), &vec![Some(4), None, None, Some(2)]);
+        setp.clear();
+        assert!(view.data().is_empty());
+    }
+
+    fn view_values(view: &mut OrderedVecView<i32, i32>) -> Vec<i32> {
+        view.iter().map(|(_, b)| *b).collect()
+    }
+
+    #[test]
+    fn test_vec_ordered() {
+        let world = World::new();
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new(&world);
+        let mut view = setp.signal().view_vec_sorted(|i| *i);
+        setp.add(2);
+        setp.add(3);
+        setp.add(1);
+        assert_eq!(view_values(&mut view), vec![1, 2, 3]);
+        setp.remove(2);
+        assert_eq!(view_values(&mut view), vec![1, 3]);
+        setp.add(4);
+        assert_eq!(view_values(&mut view), vec![1, 3, 4]);
+        setp.add(2);
+        assert_eq!(view_values(&mut view), vec![1, 2, 3, 4]);
+        setp.clear();
+        assert!(view.data().is_empty());
+    }
+
+    #[test]
+    fn test_vec_ordered_replace() {
+        let world = World::new();
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new(&world);
+        let mut view = setp.signal().view_vec_sorted(|i| *i / 2);
+        setp.add(0);
+        setp.add(1);
+        assert_eq!(view_values(&mut view), vec![1]);
+        setp.remove(1);
+        assert!(view.data().is_empty());
+        setp.add(2);
+        setp.add(4);
+        setp.add(7);
+        assert_eq!(view_values(&mut view), vec![2, 4, 7]);
+    }
 }
