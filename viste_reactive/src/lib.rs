@@ -20,7 +20,6 @@ use std::rc::Rc;
 
 pub mod collections;
 mod graph;
-pub mod list;
 pub mod readers;
 pub mod stores;
 mod streams;
