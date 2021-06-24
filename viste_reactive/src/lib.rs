@@ -18,8 +18,8 @@ use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
+pub mod collections;
 mod graph;
-pub mod list;
 pub mod readers;
 pub mod stores;
 mod streams;
@@ -38,6 +38,33 @@ impl<T: Debug + Clone + PartialEq> Data for T {
 
     fn cheap_clone(&self) -> Self {
         self.clone()
+    }
+}
+
+#[derive(Debug)]
+pub struct Distinct<T: Data>(T);
+
+impl<T: Data> Distinct<T> {
+    pub fn new(t: T) -> Self {
+        Self(t)
+    }
+
+    pub fn deconstruct(self) -> T {
+        self.0
+    }
+
+    pub fn get(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: Data> Data for Distinct<T> {
+    fn changed(&self, _other: &Self) -> bool {
+        true
+    }
+
+    fn cheap_clone(&self) -> Self {
+        Distinct(self.0.cheap_clone())
     }
 }
 
