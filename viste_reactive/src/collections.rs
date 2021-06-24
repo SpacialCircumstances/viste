@@ -192,11 +192,11 @@ impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
         self.collector.clear();
     }
 
-    pub fn data(&self) -> &HashSet<T> {
+    pub fn unchanged_data(&self) -> &HashSet<T> {
         &self.data
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }
 }
@@ -233,11 +233,11 @@ impl<'a, T: Data + Eq + Ord + 'a> BTreeSetView<'a, T> {
         self.collector.clear();
     }
 
-    pub fn data(&self) -> &BTreeSet<T> {
+    pub fn unchanged_data(&self) -> &BTreeSet<T> {
         &self.data
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }
 }
@@ -284,11 +284,11 @@ impl<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> HashMapView<'a, T, K, V> {
         self.collector.clear();
     }
 
-    pub fn data(&self) -> &HashMap<K, V> {
+    pub fn unchanged_data(&self) -> &HashMap<K, V> {
         &self.data
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.data.iter()
     }
 }
@@ -335,11 +335,11 @@ impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> BTreeMapView<'a, T, K, V> {
         self.collector.clear();
     }
 
-    pub fn data(&self) -> &BTreeMap<K, V> {
+    pub fn unchanged_data(&self) -> &BTreeMap<K, V> {
         &self.data
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.data.iter()
     }
 }
@@ -383,11 +383,11 @@ impl<'a, T: Data + 'a> VecIndexView<'a, T> {
         self.collector.clear();
     }
 
-    pub fn data(&self) -> &Vec<Option<T>> {
+    pub fn unchanged_data(&self) -> &Vec<Option<T>> {
         &self.data
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Option<T>> {
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = &Option<T>> {
         self.data.iter()
     }
 }
@@ -437,11 +437,11 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
         self.collector.clear();
     }
 
-    pub fn data(&self) -> &Vec<(K, T)> {
+    pub fn unchanged_data(&self) -> &Vec<(K, T)> {
         &self.data
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &(K, T)> {
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = &(K, T)> {
         self.data.iter()
     }
 }
