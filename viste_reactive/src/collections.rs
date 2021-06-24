@@ -199,6 +199,16 @@ impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
     pub fn unchanged_iter(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }
+
+    pub fn data(&mut self) -> &HashSet<T> {
+        self.update();
+        self.unchanged_data()
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = &T> {
+        self.update();
+        self.unchanged_iter()
+    }
 }
 
 pub struct BTreeSetView<'a, T: Data + Eq + Ord + 'a> {
@@ -239,6 +249,16 @@ impl<'a, T: Data + Eq + Ord + 'a> BTreeSetView<'a, T> {
 
     pub fn unchanged_iter(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
+    }
+
+    pub fn data(&mut self) -> &BTreeSet<T> {
+        self.update();
+        self.unchanged_data()
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = &T> {
+        self.update();
+        self.unchanged_iter()
     }
 }
 
@@ -291,6 +311,16 @@ impl<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> HashMapView<'a, T, K, V> {
     pub fn unchanged_iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.data.iter()
     }
+
+    pub fn data(&mut self) -> &HashMap<K, V> {
+        self.update();
+        self.unchanged_data()
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = (&K, &V)> {
+        self.update();
+        self.unchanged_iter()
+    }
 }
 
 pub struct BTreeMapView<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> {
@@ -342,6 +372,16 @@ impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> BTreeMapView<'a, T, K, V> {
     pub fn unchanged_iter(&self) -> impl Iterator<Item = (&K, &V)> {
         self.data.iter()
     }
+
+    pub fn data(&mut self) -> &BTreeMap<K, V> {
+        self.update();
+        self.unchanged_data()
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = (&K, &V)> {
+        self.update();
+        self.unchanged_iter()
+    }
 }
 
 pub struct VecIndexView<'a, T: Data + 'a> {
@@ -389,6 +429,16 @@ impl<'a, T: Data + 'a> VecIndexView<'a, T> {
 
     pub fn unchanged_iter(&self) -> impl Iterator<Item = &Option<T>> {
         self.data.iter()
+    }
+
+    pub fn data(&mut self) -> &Vec<Option<T>> {
+        self.update();
+        self.unchanged_data()
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = &Option<T>> {
+        self.update();
+        self.unchanged_iter()
     }
 }
 
@@ -443,6 +493,16 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
 
     pub fn unchanged_iter(&self) -> impl Iterator<Item = &(K, T)> {
         self.data.iter()
+    }
+
+    pub fn data(&mut self) -> &Vec<(K, T)> {
+        self.update();
+        self.unchanged_data()
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = &(K, T)> {
+        self.update();
+        self.unchanged_iter()
     }
 }
 
