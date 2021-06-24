@@ -448,6 +448,24 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
 
 #[cfg(test)]
 mod tests {
+    use crate::collections::*;
+    use crate::*;
+
     #[test]
-    fn test_hashset_view() {}
+    fn test_hashset_view() {
+        let world = World::new();
+        let mut setp = CollectionPortal::new(&world);
+        let mut view = setp.signal().view_set_hash();
+        assert!(view.unchanged_data().is_empty());
+        setp.add(2);
+        view.update();
+        assert!(view.unchanged_data().contains(&2));
+        setp.remove(2);
+        setp.add(3);
+        view.update();
+        assert!(!view.unchanged_data().contains(&2));
+        setp.clear();
+        view.update();
+        assert!(view.unchanged_data().is_empty());
+    }
 }
