@@ -114,11 +114,12 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
         BTreeMapView::new(self.clone(), key_func, value_func)
     }
 
-    pub fn view_vec_indexed<IF: Fn(&T) -> usize + 'a>(
+    pub fn view_vec_indexed<R: 'a, IF: Fn(&T) -> usize + 'a, VF: Fn(T) -> R + 'a>(
         &self,
         index_func: IF,
-    ) -> VecIndexView<'a, T> {
-        VecIndexView::new(self.clone(), index_func)
+        value_func: VF,
+    ) -> VecIndexView<'a, T, R> {
+        VecIndexView::new(self.clone(), index_func, value_func)
     }
 
     pub fn view_vec_sorted<K: Copy + Ord + Eq + Data, KF: Fn(&T) -> K + 'a>(
@@ -384,18 +385,24 @@ impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> BTreeMapView<'a, T, K, V> {
     }
 }
 
-pub struct VecIndexView<'a, T: Data + 'a> {
+pub struct VecIndexView<'a, T: Data + 'a, R: 'a> {
     collector: Collector<'a, SetChange<T>>,
     index_func: Box<dyn Fn(&T) -> usize + 'a>,
-    data: Vec<Option<T>>,
+    value_func: Box<dyn Fn(T) -> R + 'a>,
+    data: Vec<Option<R>>,
 }
 
-impl<'a, T: Data + 'a> VecIndexView<'a, T> {
-    pub fn new<IF: Fn(&T) -> usize + 'a>(signal: CollectionSignal<'a, T>, index_func: IF) -> Self {
+impl<'a, T: Data + 'a, R: 'a> VecIndexView<'a, T, R> {
+    pub fn new<IF: Fn(&T) -> usize + 'a, VF: Fn(T) -> R + 'a>(
+        signal: CollectionSignal<'a, T>,
+        index_func: IF,
+        value_func: VF,
+    ) -> Self {
         Self {
             collector: signal.0.collect(),
             data: Vec::new(),
             index_func: Box::new(index_func),
+            value_func: Box::new(value_func),
         }
     }
 
@@ -403,6 +410,7 @@ impl<'a, T: Data + 'a> VecIndexView<'a, T> {
         self.collector.update();
         let store = &mut self.data;
         let idxf = &self.index_func;
+        let vf = &self.value_func;
 
         self.collector
             .items
@@ -413,7 +421,7 @@ impl<'a, T: Data + 'a> VecIndexView<'a, T> {
                     if store.len() <= idx {
                         store.resize_with(idx + 1, || None);
                     }
-                    store[idx] = Some(t);
+                    store[idx] = Some(vf(t));
                 }
                 SetChange::Removed(t) => {
                     store[idxf(&t)] = None;
@@ -423,20 +431,20 @@ impl<'a, T: Data + 'a> VecIndexView<'a, T> {
         self.collector.clear();
     }
 
-    pub fn unchanged_data(&self) -> &Vec<Option<T>> {
+    pub fn unchanged_data(&self) -> &Vec<Option<R>> {
         &self.data
     }
 
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = &Option<T>> {
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = &Option<R>> {
         self.data.iter()
     }
 
-    pub fn data(&mut self) -> &Vec<Option<T>> {
+    pub fn data(&mut self) -> &Vec<Option<R>> {
         self.update();
         self.unchanged_data()
     }
 
-    pub fn iter(&mut self) -> impl Iterator<Item = &Option<T>> {
+    pub fn iter(&mut self) -> impl Iterator<Item = &Option<R>> {
         self.update();
         self.unchanged_iter()
     }
