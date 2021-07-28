@@ -32,9 +32,9 @@ impl<T: Data> ComputationCore for Constant<T> {
         self.value.destroy_reader(reader)
     }
 
-    fn add_dependency(&mut self, child: NodeIndex) {}
+    fn add_dependency(&mut self, _child: NodeIndex) {}
 
-    fn remove_dependency(&mut self, child: NodeIndex) {}
+    fn remove_dependency(&mut self, _child: NodeIndex) {}
 
     fn is_dirty(&self) -> bool {
         self.node.is_dirty()

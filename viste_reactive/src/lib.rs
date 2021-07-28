@@ -19,7 +19,7 @@ use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
 pub mod collections;
-mod graph;
+pub mod graph;
 pub mod readers;
 pub mod stores;
 mod streams;
