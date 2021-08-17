@@ -20,6 +20,10 @@ impl<T: Data> SingleValueStore<T> {
     }
 
     pub fn set_value(&mut self, value: T) {
+        if !value.changed(&self.value) {
+            return;
+        }
+
         self.value = value;
         self.reader_states
             .iter_mut()
