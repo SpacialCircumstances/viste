@@ -77,8 +77,8 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
     ) -> CollectionSignal<'a, O> {
         self.0
             .filter_map(move |c| match c {
-                SetChange::Added(t) => f(t).map(|o| SetChange::Added(o)),
-                SetChange::Removed(t) => f(t).map(|o| SetChange::Removed(o)),
+                SetChange::Added(t) => f(t).map(SetChange::Added),
+                SetChange::Removed(t) => f(t).map(SetChange::Removed),
                 SetChange::Clear => Some(SetChange::Clear),
             })
             .into()
@@ -483,11 +483,10 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
                 }
                 SetChange::Removed(t) => {
                     let key = keyf(&t);
-                    match store.binary_search_by_key(&key, |(k, _)| *k) {
-                        Ok(existing_idx) => {
-                            store.remove(existing_idx);
-                        }
-                        Err(_) => (), //Should we panic?
+                    if let Ok(existing_idx) = store.binary_search_by_key(&key, |(k, _)| *k) {
+                        store.remove(existing_idx);
+                    } else {
+                        //TODO: Panic?
                     }
                 }
                 SetChange::Clear => store.clear(),

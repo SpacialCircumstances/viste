@@ -187,6 +187,12 @@ impl<T> Graph<T> {
     }
 }
 
+impl<T> Default for Graph<T> {
+    fn default() -> Self {
+        Graph::new()
+    }
+}
+
 impl<T> Index<NodeIndex> for Graph<T> {
     type Output = T;
 

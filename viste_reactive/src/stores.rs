@@ -74,6 +74,12 @@ impl<T: Data> BufferedStore<T> {
     }
 }
 
+impl<T: Data> Default for BufferedStore<T> {
+    fn default() -> Self {
+        BufferedStore::new()
+    }
+}
+
 impl<T: Data> Store for BufferedStore<T> {
     fn create_reader(&mut self) -> ReaderToken {
         ReaderToken(self.reader_states.insert(VecDeque::new()))
