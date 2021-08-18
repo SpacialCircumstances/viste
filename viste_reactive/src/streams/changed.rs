@@ -5,12 +5,12 @@ use crate::*;
 pub struct Changed<'a, T: Data + 'a> {
     source: ParentValueSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
     store: BufferedStore<T>,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data + 'a> Changed<'a, T> {
     pub fn new(world: World, source: ValueSignal<'a, T>) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         Self {
             source: ParentValueSignal::new(source, node.node()),
             store: BufferedStore::new(),

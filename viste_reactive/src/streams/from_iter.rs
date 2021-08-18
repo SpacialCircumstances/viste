@@ -4,14 +4,14 @@ use crate::*;
 pub struct FromIter<'a, T: Data + 'a> {
     store: BufferedStore<T>,
     iterator: Box<dyn Iterator<Item = T> + 'a>,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data + 'a> FromIter<'a, T> {
     pub fn new<I: Iterator<Item = T> + 'a>(world: World, iter: I) -> Self {
         Self {
             store: BufferedStore::new(),
-            node: OwnNode::new(world),
+            node: NodeState::new(world),
             iterator: Box::new(iter),
         }
     }

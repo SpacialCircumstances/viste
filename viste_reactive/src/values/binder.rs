@@ -7,12 +7,12 @@ pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O>
     current_signal: ParentValueSignal<'a, O, SingleComputationResult<O>, ChangeReader<'a, O>>,
     parent: ParentValueSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
     current_value: SingleValueStore<O>,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Binder<'a, I, O, B> {
     pub fn new(world: World, parent: ValueSignal<'a, I>, binder: B) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         info!("Binder signal created: {}", node.node());
         let mut parent: ParentValueSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
             ParentValueSignal::new(parent, node.node());
@@ -84,7 +84,7 @@ pub struct Binder2<
     parent1: ParentValueSignal<'a, I1, (bool, I1), CachedReader<'a, I1>>,
     parent2: ParentValueSignal<'a, I2, (bool, I2), CachedReader<'a, I2>>,
     current_value: SingleValueStore<O>,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, B: Fn(I1, I2) -> ValueSignal<'a, O> + 'a>
@@ -96,7 +96,7 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, B: Fn(I1, I2) -> ValueSigna
         parent2: ValueSignal<'a, I2>,
         binder: B,
     ) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         info!("Binder2 signal created: {}", node.node());
         let mut parent1: ParentValueSignal<I1, (bool, I1), CachedReader<'a, I1>> =
             ParentValueSignal::new(parent1, node.node());

@@ -6,12 +6,12 @@ pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
     source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
     store: BufferedStore<T>,
     filter: F,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
     pub fn new(world: World, source: StreamSignal<'a, T>, filter: F) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         let source = ParentStreamSignal::new(source, node.node());
         Self {
             source,

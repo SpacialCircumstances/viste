@@ -7,12 +7,12 @@ pub struct Mapper<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> {
     source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
     values: BufferedStore<R>,
     mapper: M,
-    own_node: OwnNode,
+    own_node: NodeState,
 }
 
 impl<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> Mapper<'a, T, R, M> {
     pub fn new(world: World, source: StreamSignal<'a, T>, mapper: M) -> Self {
-        let own_node = OwnNode::new(world);
+        let own_node = NodeState::new(world);
         Mapper {
             source: ParentStreamSignal::new(source, own_node.node()),
             values: BufferedStore::new(),

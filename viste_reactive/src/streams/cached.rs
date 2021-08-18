@@ -6,12 +6,12 @@ pub struct Cached<'a, T: Data + 'a> {
     source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
     last: Option<T>,
     store: BufferedStore<T>,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data + 'a> Cached<'a, T> {
     pub fn new(world: World, source: StreamSignal<'a, T>) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         let source = ParentStreamSignal::new(source, node.node());
         Self {
             source,

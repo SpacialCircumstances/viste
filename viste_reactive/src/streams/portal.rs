@@ -3,14 +3,14 @@ use crate::*;
 
 pub struct Portal<T: Data> {
     store: BufferedStore<T>,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data + 'a> Portal<T> {
     pub fn new(world: World) -> Self {
         Portal {
             store: BufferedStore::new(),
-            node: OwnNode::new(world),
+            node: NodeState::new(world),
         }
     }
 

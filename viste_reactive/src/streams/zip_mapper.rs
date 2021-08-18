@@ -9,7 +9,7 @@ pub struct ZipMapper<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I
     cached_value2: Option<I2>,
     store: BufferedStore<O>,
     mapper: M,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>
@@ -21,7 +21,7 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>
         source2: StreamSignal<'a, I2>,
         mapper: M,
     ) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         let source1 = ParentStreamSignal::new(source1, node.node());
         let source2 = ParentStreamSignal::new(source2, node.node());
         Self {

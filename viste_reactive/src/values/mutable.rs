@@ -4,12 +4,12 @@ use log::info;
 
 pub struct Mutable<T: Data> {
     current_value: SingleValueStore<T>,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<T: Data> Mutable<T> {
     pub fn new(world: World, initial: T) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         info!("Mutable signal created: {}", node.node());
         Self {
             current_value: SingleValueStore::new(initial),

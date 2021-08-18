@@ -6,12 +6,12 @@ pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
     source: ParentValueSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
     current_value: SingleValueStore<O>,
     mapper: M,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
     pub fn new(world: World, source: ValueSignal<'a, I>, mapper: M) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         info!("Mapper signal created: {}", node.node());
         let mut source: ParentValueSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
             ParentValueSignal::new(source, node.node());
@@ -68,7 +68,7 @@ pub struct Mapper2<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2)
     source2: ParentValueSignal<'a, I2, (bool, I2), CachedReader<'a, I2>>,
     current_value: SingleValueStore<O>,
     mapper: M,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> Mapper2<'a, I1, I2, O, M> {
@@ -78,7 +78,7 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> Mapper2<'a, I1, I
         source2: ValueSignal<'a, I2>,
         mapper: M,
     ) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         info!("Mapper2 signal created: {}", node.node());
         let mut source1: ParentValueSignal<'a, I1, (bool, I1), CachedReader<'a, I1>> =
             ParentValueSignal::new(source1, node.node());

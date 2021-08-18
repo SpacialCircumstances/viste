@@ -6,12 +6,12 @@ pub struct Folder<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> {
     store: SingleValueStore<V>,
     current_value: Option<V>,
     folder: F,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> Folder<'a, T, V, F> {
     pub fn new(world: World, source: StreamSignal<'a, T>, initial: V, folder: F) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         let source = ParentStreamSignal::new(source, node.node());
         Self {
             source,

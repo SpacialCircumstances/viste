@@ -2,13 +2,13 @@ use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Constant<T: Data> {
-    node: OwnNode,
+    node: NodeState,
     value: SingleValueStore<T>,
 }
 
 impl<T: Data> Constant<T> {
     pub fn new(world: World, value: T) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         info!("Constant signal created: {}", node.node());
         Self {
             node,

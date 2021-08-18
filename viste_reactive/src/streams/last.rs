@@ -5,12 +5,12 @@ use crate::*;
 pub struct Last<'a, T: Data + 'a> {
     source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
     value: SingleValueStore<T>,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data + 'a> Last<'a, T> {
     pub fn new(world: World, source: StreamSignal<'a, T>, initial: T) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         Self {
             source: ParentStreamSignal::new(source, node.node()),
             value: SingleValueStore::new(initial),

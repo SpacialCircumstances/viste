@@ -6,12 +6,12 @@ pub struct FilterMapper<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 
     source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
     store: BufferedStore<O>,
     fmap: F,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 'a> FilterMapper<'a, T, O, F> {
     pub fn new(world: World, source: StreamSignal<'a, T>, fmap: F) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         Self {
             source: ParentStreamSignal::new(source, node.node()),
             store: BufferedStore::new(),

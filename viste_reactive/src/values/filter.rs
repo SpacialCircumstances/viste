@@ -6,12 +6,12 @@ pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
     source: ParentValueSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
     current_value: SingleValueStore<T>,
     filter: F,
-    node: OwnNode,
+    node: NodeState,
 }
 
 impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
     pub fn new(world: World, parent: ValueSignal<'a, T>, initial: T, filter: F) -> Self {
-        let node = OwnNode::new(world);
+        let node = NodeState::new(world);
         info!("Filter signal created: {}", node.node());
         let source = ParentValueSignal::new(parent, node.node());
         Self {

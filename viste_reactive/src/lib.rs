@@ -494,9 +494,9 @@ impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>> Dr
     }
 }
 
-pub struct OwnNode(World, NodeIndex);
+pub struct NodeState(World, NodeIndex);
 
-impl OwnNode {
+impl NodeState {
     pub fn new(world: World) -> Self {
         let idx = world.create_node();
         Self(world, idx)
@@ -531,7 +531,7 @@ impl OwnNode {
     }
 }
 
-impl Drop for OwnNode {
+impl Drop for NodeState {
     fn drop(&mut self) {
         info!("Dropping signal: {}", self.1);
         self.0.destroy_node(self.1)
