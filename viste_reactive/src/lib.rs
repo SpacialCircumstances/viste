@@ -68,28 +68,49 @@ impl<T: Data> Data for Distinct<T> {
     }
 }
 
-struct DirtyFlag(Vec<NodeIndex>); //TODO: Investigate smallvec
+enum DirtyFlag {
+    Basic(bool),
+    Changed(Vec<NodeIndex>), //TODO: Investigate smallvec
+}
 
 impl DirtyFlag {
-    fn new() -> Self {
-        DirtyFlag(Vec::new())
+    fn clean() -> Self {
+        DirtyFlag::Basic(false)
+    }
+
+    fn dirty() -> Self {
+        DirtyFlag::Basic(true)
     }
 
     fn is_dirty(&self) -> bool {
-        !self.0.is_empty()
+        match self {
+            DirtyFlag::Basic(b) => *b,
+            DirtyFlag::Changed(nodes) => !nodes.is_empty(),
+        }
     }
 
     fn unmark(&mut self) {
-        self.0.clear()
+        match self {
+            DirtyFlag::Basic(_) => *self = DirtyFlag::clean(),
+            DirtyFlag::Changed(changed) => changed.clear(),
+        }
     }
 
-    fn mark(&mut self, cause: NodeIndex) {
-        self.0.push(cause)
+    fn mark(&mut self, cause: DirtyingCause) {
+        match (self, cause) {
+            (DirtyFlag::Changed(changed), DirtyingCause::Parent(p)) => changed.push(p),
+            (d, DirtyingCause::Parent(p)) => {
+                if let DirtyFlag::Basic(false) = d {
+                    *d = DirtyFlag::Changed(vec![p])
+                } // Else we need to recalculate all parents anyways, unfortunately
+            }
+            (d, DirtyingCause::External) => *d = DirtyFlag::dirty(),
+        }
     }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum DirtyingCause {
+pub enum DirtyingCause {
     External,
     Parent(NodeIndex),
 }
@@ -107,7 +128,7 @@ impl World {
         })))
     }
 
-    pub fn mark_dirty(&self, node: NodeIndex, cause: NodeIndex) {
+    pub fn mark_dirty(&self, node: NodeIndex, cause: DirtyingCause) {
         let mut wd = self.0.borrow_mut();
         let old_dirty = &wd.dependencies[node];
         if !old_dirty.is_dirty() {
@@ -115,7 +136,7 @@ impl World {
                 |child, child_idx, state| {
                     if !child.is_dirty() {
                         child.mark(state);
-                        SearchContinuation::Continue(child_idx)
+                        SearchContinuation::Continue(DirtyingCause::Parent(child_idx))
                     } else {
                         SearchContinuation::Stop
                     }
@@ -136,7 +157,10 @@ impl World {
     }
 
     pub fn create_node(&self) -> NodeIndex {
-        self.0.borrow_mut().dependencies.add_node(DirtyFlag::new())
+        self.0
+            .borrow_mut()
+            .dependencies
+            .add_node(DirtyFlag::dirty())
     }
 
     pub fn destroy_node(&self, node: NodeIndex) {
@@ -553,7 +577,7 @@ impl NodeState {
         self.0.unmark(self.1)
     }
 
-    pub fn mark_dirty(&self, cause: NodeIndex) {
+    pub fn mark_dirty(&self, cause: DirtyingCause) {
         self.0.mark_dirty(self.1, cause)
     }
 }
