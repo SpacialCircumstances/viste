@@ -88,6 +88,12 @@ impl DirtyFlag {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum DirtyingCause {
+    External,
+    Parent(NodeIndex),
+}
+
 struct WorldData {
     dependencies: Graph<DirtyFlag>,
 }
