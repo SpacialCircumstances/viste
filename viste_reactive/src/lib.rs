@@ -109,6 +109,12 @@ impl DirtyFlag {
     }
 }
 
+impl Default for DirtyFlag {
+    fn default() -> Self {
+        Self::dirty()
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DirtyingCause {
     External,
