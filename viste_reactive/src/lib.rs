@@ -68,25 +68,23 @@ impl<T: Data> Data for Distinct<T> {
     }
 }
 
-enum DirtyFlag {
-    Basic(bool),
-    MarkedByNodes(Vec<NodeIndex>), //TODO: Investigate smallvec
-}
+struct DirtyFlag(Vec<NodeIndex>); //TODO: Investigate smallvec
 
 impl DirtyFlag {
-    fn dirty() -> Self {
-        DirtyFlag::Basic(true)
-    }
-
-    fn clean() -> Self {
-        DirtyFlag::Basic(false)
+    fn new() -> Self {
+        DirtyFlag(Vec::new())
     }
 
     fn is_dirty(&self) -> bool {
-        match self {
-            DirtyFlag::Basic(df) => *df,
-            DirtyFlag::MarkedByNodes(nodes) => !nodes.is_empty(),
-        }
+        !self.0.is_empty()
+    }
+
+    fn unmark(&mut self) {
+        self.0.clear()
+    }
+
+    fn mark(&mut self, cause: NodeIndex) {
+        self.0.push(cause)
     }
 }
 
@@ -103,20 +101,21 @@ impl World {
         })))
     }
 
-    pub fn mark_dirty(&self, node: NodeIndex) {
+    pub fn mark_dirty(&self, node: NodeIndex, cause: NodeIndex) {
         let mut wd = self.0.borrow_mut();
         let old_dirty = &wd.dependencies[node];
         if !old_dirty.is_dirty() {
             wd.dependencies.search_children_mut(
-                |child| {
+                |child, child_idx, state| {
                     if !child.is_dirty() {
-                        *child = DirtyFlag::dirty();
-                        SearchContinuation::Continue
+                        child.mark(state);
+                        SearchContinuation::Continue(child_idx)
                     } else {
                         SearchContinuation::Stop
                     }
                 },
                 node,
+                cause,
             );
         }
     }
@@ -127,14 +126,11 @@ impl World {
     }
 
     pub fn unmark(&self, node: NodeIndex) {
-        self.0.borrow_mut().dependencies[node] = DirtyFlag::clean();
+        self.0.borrow_mut().dependencies[node].unmark();
     }
 
     pub fn create_node(&self) -> NodeIndex {
-        self.0
-            .borrow_mut()
-            .dependencies
-            .add_node(DirtyFlag::dirty())
+        self.0.borrow_mut().dependencies.add_node(DirtyFlag::new())
     }
 
     pub fn destroy_node(&self, node: NodeIndex) {
@@ -551,8 +547,8 @@ impl NodeState {
         self.0.unmark(self.1)
     }
 
-    pub fn mark_dirty(&self) {
-        self.0.mark_dirty(self.1)
+    pub fn mark_dirty(&self, cause: NodeIndex) {
+        self.0.mark_dirty(self.1, cause)
     }
 }
 

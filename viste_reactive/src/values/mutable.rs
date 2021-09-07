@@ -19,7 +19,7 @@ impl<T: Data> Mutable<T> {
 
     pub fn set(&mut self, value: T) {
         self.current_value.set_value(value);
-        self.node.mark_dirty();
+        //self.node.mark_dirty(); //TODO
     }
 }
 
