@@ -68,8 +68,30 @@ impl<T: Data> Data for Distinct<T> {
     }
 }
 
+enum DirtyFlag {
+    Basic(bool),
+    MarkedByNodes(Vec<NodeIndex>), //TODO: Investigate smallvec
+}
+
+impl DirtyFlag {
+    fn dirty() -> Self {
+        DirtyFlag::Basic(true)
+    }
+
+    fn clean() -> Self {
+        DirtyFlag::Basic(false)
+    }
+
+    fn is_dirty(&self) -> bool {
+        match self {
+            DirtyFlag::Basic(df) => *df,
+            DirtyFlag::MarkedByNodes(nodes) => !nodes.is_empty(),
+        }
+    }
+}
+
 struct WorldData {
-    dependencies: Graph<bool>,
+    dependencies: Graph<DirtyFlag>,
 }
 
 pub struct World(Rc<RefCell<WorldData>>);
@@ -83,12 +105,12 @@ impl World {
 
     pub fn mark_dirty(&self, node: NodeIndex) {
         let mut wd = self.0.borrow_mut();
-        let old_dirty = wd.dependencies[node];
-        if !old_dirty {
+        let old_dirty = &wd.dependencies[node];
+        if !old_dirty.is_dirty() {
             wd.dependencies.search_children_mut(
                 |child| {
-                    if !*child {
-                        *child = true;
+                    if !child.is_dirty() {
+                        *child = DirtyFlag::dirty();
                         SearchContinuation::Continue
                     } else {
                         SearchContinuation::Stop
@@ -101,15 +123,18 @@ impl World {
 
     pub fn is_dirty(&self, node: NodeIndex) -> bool {
         let wd = self.0.borrow();
-        wd.dependencies[node]
+        wd.dependencies[node].is_dirty()
     }
 
     pub fn unmark(&self, node: NodeIndex) {
-        self.0.borrow_mut().dependencies[node] = false;
+        self.0.borrow_mut().dependencies[node] = DirtyFlag::clean();
     }
 
     pub fn create_node(&self) -> NodeIndex {
-        self.0.borrow_mut().dependencies.add_node(true)
+        self.0
+            .borrow_mut()
+            .dependencies
+            .add_node(DirtyFlag::dirty())
     }
 
     pub fn destroy_node(&self, node: NodeIndex) {
