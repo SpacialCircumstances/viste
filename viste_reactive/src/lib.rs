@@ -794,7 +794,7 @@ mod tests {
     fn test_stream_map() {
         let world = World::new();
         let (send, s1) = portal(&world);
-        let mut c = s1.map(|v| v + 1).last(0);
+        let c = s1.map(|v| v + 1).last(0);
         assert_eq!(read_once(&c), 0);
         send(1);
         assert_eq!(read_once(&c), 2);
