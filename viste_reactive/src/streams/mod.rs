@@ -5,6 +5,7 @@ pub mod filter;
 pub mod filter_mapper;
 pub mod from_iter;
 pub mod last;
+pub mod many;
 pub mod mapper;
 pub mod portal;
 pub mod zip_mapper;

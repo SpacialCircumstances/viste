@@ -3,6 +3,7 @@ use crate::readers::{Reader, StreamReader};
 use crate::streams::combine_mapper::CombineMapper;
 use crate::streams::from_iter::FromIter;
 use crate::streams::last::Last;
+use crate::streams::many::Many;
 use crate::streams::portal::Portal;
 use crate::streams::zip_mapper::ZipMapper;
 use crate::values::binder::{Binder, Binder2};
@@ -379,6 +380,13 @@ pub fn portal<'a, T: Data + 'a>(world: &World) -> (impl Fn(T), StreamSignal<'a, 
     let s = signal.clone();
     let pusher = move |v| s.borrow_mut().send(v);
     (pusher, StreamSignal(signal))
+}
+
+pub fn many<'a, T: Data + 'a>(
+    world: &World,
+    signals: Vec<StreamSignal<'a, T>>,
+) -> StreamSignal<'a, T> {
+    StreamSignal::create(Many::new(world.clone(), signals))
 }
 
 pub fn iter_as_stream<'a, T: Data + 'a, I: Iterator<Item = T> + 'a>(
