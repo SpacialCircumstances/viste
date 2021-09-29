@@ -30,9 +30,17 @@ impl<'a, T: Data + 'a> ComputationCore for Many<'a, T> {
         if self.is_dirty() {
             self.node.clean();
 
-            for source in self.sources.iter_mut() {
-                if let Some(val) = source.compute() {
-                    self.values.push(val)
+            loop {
+                let mut new = false;
+                for source in self.sources.iter_mut() {
+                    if let Some(val) = source.compute() {
+                        self.values.push(val);
+                        new = true;
+                    }
+                }
+
+                if !new {
+                    break;
                 }
             }
         }
