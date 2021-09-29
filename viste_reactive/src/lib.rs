@@ -3,6 +3,7 @@ use crate::readers::{Reader, StreamReader};
 use crate::streams::combine_mapper::CombineMapper;
 use crate::streams::from_iter::FromIter;
 use crate::streams::last::Last;
+use crate::streams::many::Many;
 use crate::streams::portal::Portal;
 use crate::streams::zip_mapper::ZipMapper;
 use crate::values::binder::{Binder, Binder2};
@@ -438,6 +439,13 @@ pub fn portal<'a, T: Data + 'a>(world: &World) -> (impl Fn(T), StreamSignal<'a, 
     (pusher, StreamSignal(signal))
 }
 
+pub fn many<'a, T: Data + 'a>(
+    world: &World,
+    signals: Vec<StreamSignal<'a, T>>,
+) -> StreamSignal<'a, T> {
+    StreamSignal::create(Many::new(world.clone(), signals))
+}
+
 pub fn iter_as_stream<'a, T: Data + 'a, I: Iterator<Item = T> + 'a>(
     world: &World,
     iter: I,
@@ -851,7 +859,7 @@ mod tests {
     fn test_stream_map() {
         let world = World::new();
         let (send, s1) = portal(&world);
-        let mut c = s1.map(|v| v + 1).last(0);
+        let c = s1.map(|v| v + 1).last(0);
         assert_eq!(read_once(&c), 0);
         send(1);
         assert_eq!(read_once(&c), 2);
@@ -1021,5 +1029,20 @@ mod tests {
         send(5);
         send(2);
         assert_eq!(12, read_once(&v));
+    }
+
+    #[test]
+    fn test_many() {
+        let world = World::new();
+        let (send1, s1) = portal(&world);
+        let (send2, s2) = portal(&world);
+        let mut c = many(&world, vec![s1, s2]).collect();
+        send1(1);
+        send2(1);
+        send1(2);
+        assert_eq!(vec![1, 1, 2], collect_all(&mut c));
+        send1(3);
+        send2(4);
+        assert_eq!(vec![3, 4], collect_all(&mut c));
     }
 }

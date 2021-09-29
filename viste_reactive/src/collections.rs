@@ -128,6 +128,13 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
     ) -> OrderedVecView<'a, T, K> {
         OrderedVecView::new(self.clone(), key_func)
     }
+
+    pub fn view_vec(&self) -> VecView<'a, T>
+    where
+        T: PartialEq,
+    {
+        VecView::new(self.clone())
+    }
 }
 
 pub struct CollectionPortal<'a, T: Data + 'a> {
@@ -450,6 +457,55 @@ impl<'a, T: Data + 'a, R: 'a> VecIndexView<'a, T, R> {
     }
 }
 
+pub struct VecView<'a, T: Data + PartialEq + 'a> {
+    data: Vec<T>,
+    collector: Collector<'a, SetChange<T>>,
+}
+
+impl<'a, T: Data + PartialEq + 'a> VecView<'a, T> {
+    pub fn new(signal: CollectionSignal<'a, T>) -> Self {
+        VecView {
+            data: Vec::new(),
+            collector: signal.0.collect(),
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.collector.update();
+        let store = &mut self.data;
+        self.collector
+            .items
+            .drain(..)
+            .for_each(|change| match change {
+                SetChange::Added(t) => store.push(t),
+                SetChange::Clear => store.clear(),
+                SetChange::Removed(t) => {
+                    if let Some(idx) = store.iter().position(|x| x == &t) {
+                        store.remove(idx);
+                    }
+                }
+            })
+    }
+
+    pub fn unchanged_data(&self) -> &Vec<T> {
+        &self.data
+    }
+
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = &T> {
+        self.data.iter()
+    }
+
+    pub fn data(&mut self) -> &Vec<T> {
+        self.update();
+        self.unchanged_data()
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = &T> {
+        self.update();
+        self.unchanged_iter()
+    }
+}
+
 pub struct OrderedVecView<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> {
     data: Vec<(K, T)>,
     key_func: Box<dyn Fn(&T) -> K + 'a>,
@@ -516,7 +572,6 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
 #[cfg(test)]
 mod tests {
     use crate::collections::*;
-    use crate::*;
 
     #[test]
     fn test_hashset_view() {
@@ -646,5 +701,21 @@ mod tests {
         setp.add(4);
         setp.add(7);
         assert_eq!(view_values(&mut view), vec![2, 4, 7]);
+    }
+
+    #[test]
+    fn test_vec_view() {
+        let world = World::new();
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new(&world);
+        let mut view = setp.signal().view_vec();
+        setp.add(0);
+        setp.add(1);
+        assert_eq!(view.data(), &vec![0, 1]);
+        setp.add(0);
+        assert_eq!(view.data(), &vec![0, 1, 0]);
+        setp.remove(0);
+        assert_eq!(view.data(), &vec![1, 0]);
+        setp.clear();
+        assert!(view.data().is_empty())
     }
 }
