@@ -973,4 +973,19 @@ mod tests {
         send(2);
         assert_eq!(12, read_once(&v));
     }
+
+    #[test]
+    fn test_many() {
+        let world = World::new();
+        let (send1, s1) = portal(&world);
+        let (send2, s2) = portal(&world);
+        let mut c = many(&world, vec![s1, s2]).collect();
+        send1(1);
+        send2(1);
+        send1(2);
+        assert_eq!(vec![1, 1, 2], collect_all(&mut c));
+        send1(3);
+        send2(4);
+        assert_eq!(vec![3, 4], collect_all(&mut c));
+    }
 }
