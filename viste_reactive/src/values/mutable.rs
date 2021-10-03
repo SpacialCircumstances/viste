@@ -54,4 +54,8 @@ impl<T: Data> ComputationCore for Mutable<T> {
     fn world(&self) -> &World {
         self.node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
+    }
 }

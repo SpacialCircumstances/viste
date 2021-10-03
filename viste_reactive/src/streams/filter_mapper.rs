@@ -61,4 +61,8 @@ impl<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 'a> ComputationCore
     fn world(&self) -> &World {
         self.node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
+    }
 }

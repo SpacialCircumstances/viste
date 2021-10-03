@@ -55,4 +55,8 @@ impl<'a, T: Data + 'a> ComputationCore for Changed<'a, T> {
     fn world(&self) -> &World {
         self.node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
+    }
 }

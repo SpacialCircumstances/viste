@@ -17,6 +17,7 @@ use slab::Slab;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
+use std::mem::replace;
 use std::rc::Rc;
 
 pub mod collections;
@@ -69,7 +70,7 @@ impl<T: Data> Data for Distinct<T> {
     }
 }
 
-enum DirtyFlag {
+pub enum DirtyFlag {
     Basic(bool),
     Changed(Vec<NodeIndex>), //TODO: Investigate smallvec
 }
@@ -163,6 +164,13 @@ impl World {
         self.0.borrow_mut().dependencies[node].unmark();
     }
 
+    pub fn reset_dirty_state(&self, node: NodeIndex) -> DirtyFlag {
+        replace(
+            &mut self.0.borrow_mut().dependencies[node],
+            DirtyFlag::clean(),
+        )
+    }
+
     pub fn create_node(&self) -> NodeIndex {
         self.0
             .borrow_mut()
@@ -225,6 +233,7 @@ pub trait ComputationCore {
     fn remove_dependency(&mut self, child: NodeIndex);
     fn is_dirty(&self) -> bool;
     fn world(&self) -> &World;
+    fn node(&self) -> NodeIndex;
 }
 
 pub trait Signal<'a, S: 'a> {
@@ -236,6 +245,7 @@ pub trait Signal<'a, S: 'a> {
     fn create_reader(&self) -> ReaderToken;
     fn destroy_reader(&self, reader: ReaderToken);
     fn is_dirty(&self) -> bool;
+    fn node(&self) -> NodeIndex;
 }
 
 pub struct StreamSignal<'a, T: Data + 'a>(
@@ -279,6 +289,10 @@ impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
 
     fn is_dirty(&self) -> bool {
         self.0.borrow().is_dirty()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.0.borrow().node()
     }
 }
 
@@ -380,6 +394,10 @@ impl<'a, T: Data + 'a> Signal<'a, SingleComputationResult<T>> for ValueSignal<'a
 
     fn is_dirty(&self) -> bool {
         self.0.borrow().is_dirty()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.0.borrow().node()
     }
 }
 
@@ -589,6 +607,10 @@ impl NodeState {
 
     pub fn clean(&self) {
         self.0.unmark(self.1)
+    }
+
+    pub fn reset_dirty_state(&self) -> DirtyFlag {
+        self.0.reset_dirty_state(self.1)
     }
 
     pub fn mark_dirty(&self, cause: DirtyingCause) {

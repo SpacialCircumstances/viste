@@ -77,4 +77,8 @@ impl<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> ComputationCore
     fn world(&self) -> &World {
         self.node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
+    }
 }

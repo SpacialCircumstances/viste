@@ -1,9 +1,10 @@
 use crate::readers::StreamReader;
 use crate::stores::{BufferedStore, Store};
 use crate::*;
+use std::collections::HashMap;
 
 pub struct Many<'a, T: Data + 'a> {
-    sources: Vec<ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>>,
+    sources: HashMap<NodeIndex, ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>>,
     values: BufferedStore<T>,
     node: NodeState,
 }
@@ -13,7 +14,7 @@ impl<'a, T: Data + 'a> Many<'a, T> {
         let node = NodeState::new(world);
         let sources = sources
             .into_iter()
-            .map(|signal| ParentStreamSignal::new(signal, node.node()))
+            .map(|signal| (signal.node(), ParentStreamSignal::new(signal, node.node())))
             .collect();
         Many {
             node,
@@ -27,21 +28,17 @@ impl<'a, T: Data + 'a> ComputationCore for Many<'a, T> {
     type ComputationResult = Option<T>;
 
     fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult {
-        if self.is_dirty() {
-            self.node.clean();
-
-            loop {
-                let mut new = false;
-                for source in self.sources.iter_mut() {
-                    if let Some(val) = source.compute() {
-                        self.values.push(val);
-                        new = true;
+        match self.node.reset_dirty_state() {
+            DirtyFlag::Basic(false) => (),
+            DirtyFlag::Basic(true) => loop {
+                for (_, source) in self.sources.iter_mut() {
+                    while let Some(val) = source.compute() {
+                        self.values.push(val)
                     }
                 }
-
-                if !new {
-                    break;
-                }
+            },
+            DirtyFlag::Changed(changed) => {
+                //TODO
             }
         }
 
@@ -70,5 +67,9 @@ impl<'a, T: Data + 'a> ComputationCore for Many<'a, T> {
 
     fn world(&self) -> &World {
         self.node.world()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
     }
 }

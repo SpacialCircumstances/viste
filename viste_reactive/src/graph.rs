@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use std::mem::replace;
 use std::ops::{Index, IndexMut};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct NodeIndex(usize);
 
 impl Display for NodeIndex {
