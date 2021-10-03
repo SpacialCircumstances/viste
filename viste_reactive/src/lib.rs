@@ -104,7 +104,7 @@ impl DirtyFlag {
         match (self, cause) {
             (DirtyFlag::Changed(changed), DirtyingCause::Parent(p)) => {
                 changed.push(p);
-                false
+                changed.len() == 1
             }
             (DirtyFlag::Basic(true), _) => false,
             (d, DirtyingCause::External) => {
