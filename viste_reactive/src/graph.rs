@@ -1,6 +1,6 @@
 use log::info;
 use std::collections::vec_deque::VecDeque;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::mem::replace;
 use std::ops::{Index, IndexMut};
 
@@ -13,6 +13,7 @@ impl Display for NodeIndex {
     }
 }
 
+#[derive(Debug)]
 struct Adjacency {
     parents: Vec<usize>,
     children: Vec<usize>,
@@ -190,6 +191,17 @@ impl<T> Graph<T> {
                 }
             }
         }
+    }
+}
+
+impl<T: Debug> Debug for Graph<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for (idx, node) in self.nodes.iter().enumerate() {
+            if let Node::Filled(t, adj) = node {
+                writeln!(f, "{}: {:?} ({:?})", idx, t, adj)?;
+            }
+        }
+        Ok(())
     }
 }
 
