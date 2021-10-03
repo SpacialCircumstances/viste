@@ -1072,9 +1072,13 @@ mod tests {
         send1(1);
         send2(1);
         send1(2);
-        assert_eq!(vec![1, 2, 1], collect_all(&mut c));
+        let mut x = collect_all(&mut c);
+        x.sort();
+        assert_eq!(vec![1, 1, 2], x);
         send1(3);
         send2(4);
-        assert_eq!(vec![3, 4], collect_all(&mut c));
+        let mut x = collect_all(&mut c);
+        x.sort();
+        assert_eq!(vec![3, 4], x);
     }
 }
