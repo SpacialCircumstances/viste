@@ -30,15 +30,24 @@ impl<'a, T: Data + 'a> ComputationCore for Many<'a, T> {
     fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult {
         match self.node.reset_dirty_state() {
             DirtyFlag::Basic(false) => (),
-            DirtyFlag::Basic(true) => loop {
+            DirtyFlag::Basic(true) => {
                 for (_, source) in self.sources.iter_mut() {
                     while let Some(val) = source.compute() {
                         self.values.push(val)
                     }
                 }
-            },
+            }
             DirtyFlag::Changed(changed) => {
-                //TODO
+                for changed_node in changed {
+                    dbg!(changed_node);
+                    let source = &mut self
+                        .sources
+                        .get_mut(&changed_node)
+                        .expect("Dirtied parent node not found");
+                    while let Some(val) = source.compute() {
+                        self.values.push(val)
+                    }
+                }
             }
         }
 
