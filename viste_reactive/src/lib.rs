@@ -99,15 +99,24 @@ impl DirtyFlag {
         }
     }
 
-    fn mark(&mut self, cause: DirtyingCause) {
+    //Boolean return value shows if node was newly dirtied
+    fn mark(&mut self, cause: DirtyingCause) -> bool {
         match (self, cause) {
-            (DirtyFlag::Changed(changed), DirtyingCause::Parent(p)) => changed.push(p),
-            (d, DirtyingCause::Parent(p)) => {
-                if let DirtyFlag::Basic(false) = d {
-                    *d = DirtyFlag::Changed(vec![p])
-                } // Else we need to recalculate all parents anyways, unfortunately
+            (DirtyFlag::Changed(changed), DirtyingCause::Parent(p)) => {
+                changed.push(p);
+                false
             }
-            (d, DirtyingCause::External) => *d = DirtyFlag::dirty(),
+            (DirtyFlag::Basic(true), _) => false,
+            (d, DirtyingCause::External) => {
+                let newly_dirtied = !d.is_dirty();
+                *d = DirtyFlag::dirty();
+                newly_dirtied
+            }
+            (d, DirtyingCause::Parent(p)) => {
+                //d must automatically be DirtyFlag::Basic(false)
+                *d = DirtyFlag::Changed(vec![p]);
+                true
+            }
         }
     }
 }
@@ -143,8 +152,8 @@ impl World {
         if !old_dirty.is_dirty() {
             wd.dependencies.search_children_mut(
                 |child, child_idx, state| {
-                    if !child.is_dirty() {
-                        child.mark(state);
+                    let was_dirtied = child.mark(state);
+                    if was_dirtied {
                         SearchContinuation::Continue(DirtyingCause::Parent(child_idx))
                     } else {
                         SearchContinuation::Stop
@@ -1063,7 +1072,7 @@ mod tests {
         send1(1);
         send2(1);
         send1(2);
-        assert_eq!(vec![1, 1, 2], collect_all(&mut c));
+        assert_eq!(vec![1, 2, 1], collect_all(&mut c));
         send1(3);
         send2(4);
         assert_eq!(vec![3, 4], collect_all(&mut c));

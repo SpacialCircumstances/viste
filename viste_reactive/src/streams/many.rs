@@ -28,7 +28,8 @@ impl<'a, T: Data + 'a> ComputationCore for Many<'a, T> {
     type ComputationResult = Option<T>;
 
     fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult {
-        match self.node.reset_dirty_state() {
+        let dirty_state = self.node.reset_dirty_state();
+        match dirty_state {
             DirtyFlag::Basic(false) => (),
             DirtyFlag::Basic(true) => {
                 for (_, source) in self.sources.iter_mut() {
@@ -39,7 +40,6 @@ impl<'a, T: Data + 'a> ComputationCore for Many<'a, T> {
             }
             DirtyFlag::Changed(changed) => {
                 for changed_node in changed {
-                    dbg!(changed_node);
                     let source = &mut self
                         .sources
                         .get_mut(&changed_node)
