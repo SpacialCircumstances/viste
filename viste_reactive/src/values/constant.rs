@@ -43,4 +43,8 @@ impl<T: Data> ComputationCore for Constant<T> {
     fn world(&self) -> &World {
         self.node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
+    }
 }

@@ -70,6 +70,10 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Comput
     fn world(&self) -> &World {
         self.node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
+    }
 }
 
 pub struct Binder2<
@@ -161,5 +165,9 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, B: Fn(I1, I2) -> ValueSigna
 
     fn world(&self) -> &World {
         self.node.world()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
     }
 }

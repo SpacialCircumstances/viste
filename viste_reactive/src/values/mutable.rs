@@ -19,7 +19,7 @@ impl<T: Data> Mutable<T> {
 
     pub fn set(&mut self, value: T) {
         self.current_value.set_value(value);
-        self.node.mark_dirty();
+        self.node.mark_dirty(DirtyingCause::External)
     }
 }
 
@@ -53,5 +53,9 @@ impl<T: Data> ComputationCore for Mutable<T> {
 
     fn world(&self) -> &World {
         self.node.world()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
     }
 }

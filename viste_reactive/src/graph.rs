@@ -1,10 +1,10 @@
 use log::info;
 use std::collections::vec_deque::VecDeque;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::mem::replace;
 use std::ops::{Index, IndexMut};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct NodeIndex(usize);
 
 impl Display for NodeIndex {
@@ -13,6 +13,7 @@ impl Display for NodeIndex {
     }
 }
 
+#[derive(Debug)]
 struct Adjacency {
     parents: Vec<usize>,
     children: Vec<usize>,
@@ -29,8 +30,8 @@ pub struct Graph<T> {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum SearchContinuation {
-    Continue,
+pub enum SearchContinuation<T> {
+    Continue(T),
     Stop,
 }
 
@@ -152,38 +153,55 @@ impl<T> Graph<T> {
         }
     }
 
-    pub fn search_children<F: FnMut(&T) -> SearchContinuation>(
+    pub fn search_children<C: Copy, F: FnMut(&T, NodeIndex, C) -> SearchContinuation<C>>(
         &self,
         mut searcher: F,
         start_node: NodeIndex,
+        initial_state: C,
     ) {
         let mut to_search = VecDeque::new();
-        to_search.push_back(start_node.0);
+        to_search.push_back((start_node.0, initial_state));
 
-        while let Some(n) = to_search.pop_front() {
-            if searcher(self.get_data(n)) == SearchContinuation::Continue {
-                for child in &self.get_adjacency(n).children {
-                    to_search.push_back(*child);
+        while let Some((idx, state)) = to_search.pop_front() {
+            if let SearchContinuation::Continue(new_state) =
+                searcher(self.get_data(idx), NodeIndex(idx), state)
+            {
+                for child in &self.get_adjacency(idx).children {
+                    to_search.push_back((*child, new_state));
                 }
             }
         }
     }
 
-    pub fn search_children_mut<F: FnMut(&mut T) -> SearchContinuation>(
+    pub fn search_children_mut<C: Copy, F: FnMut(&mut T, NodeIndex, C) -> SearchContinuation<C>>(
         &mut self,
         mut searcher: F,
         start_node: NodeIndex,
+        initial_state: C,
     ) {
         let mut to_search = VecDeque::new();
-        to_search.push_back(start_node.0);
+        to_search.push_back((start_node.0, initial_state));
 
-        while let Some(n) = to_search.pop_front() {
-            if searcher(self.get_data_mut(n)) == SearchContinuation::Continue {
-                for child in &self.get_adjacency(n).children {
-                    to_search.push_back(*child);
+        while let Some((idx, state)) = to_search.pop_front() {
+            if let SearchContinuation::Continue(new_state) =
+                searcher(self.get_data_mut(idx), NodeIndex(idx), state)
+            {
+                for child in &self.get_adjacency(idx).children {
+                    to_search.push_back((*child, new_state));
                 }
             }
         }
+    }
+}
+
+impl<T: Debug> Debug for Graph<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for (idx, node) in self.nodes.iter().enumerate() {
+            if let Node::Filled(t, adj) = node {
+                writeln!(f, "{}: {:?} ({:?})", idx, t, adj)?;
+            }
+        }
+        Ok(())
     }
 }
 

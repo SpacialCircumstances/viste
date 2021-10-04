@@ -17,6 +17,7 @@ use slab::Slab;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
+use std::mem::replace;
 use std::rc::Rc;
 
 pub mod collections;
@@ -69,8 +70,71 @@ impl<T: Data> Data for Distinct<T> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum DirtyFlag {
+    Basic(bool),
+    Changed(Vec<NodeIndex>), //TODO: Investigate smallvec
+}
+
+impl DirtyFlag {
+    fn clean() -> Self {
+        DirtyFlag::Basic(false)
+    }
+
+    fn dirty() -> Self {
+        DirtyFlag::Basic(true)
+    }
+
+    fn is_dirty(&self) -> bool {
+        match self {
+            DirtyFlag::Basic(b) => *b,
+            DirtyFlag::Changed(nodes) => !nodes.is_empty(),
+        }
+    }
+
+    fn unmark(&mut self) {
+        match self {
+            DirtyFlag::Basic(_) => *self = DirtyFlag::clean(),
+            DirtyFlag::Changed(changed) => changed.clear(),
+        }
+    }
+
+    //Boolean return value shows if node was newly dirtied
+    fn mark(&mut self, cause: DirtyingCause) -> bool {
+        match (self, cause) {
+            (DirtyFlag::Changed(changed), DirtyingCause::Parent(p)) => {
+                changed.push(p);
+                changed.len() == 1
+            }
+            (DirtyFlag::Basic(true), _) => false,
+            (d, DirtyingCause::External) => {
+                let newly_dirtied = !d.is_dirty();
+                *d = DirtyFlag::dirty();
+                newly_dirtied
+            }
+            (d, DirtyingCause::Parent(p)) => {
+                //d must automatically be DirtyFlag::Basic(false)
+                *d = DirtyFlag::Changed(vec![p]);
+                true
+            }
+        }
+    }
+}
+
+impl Default for DirtyFlag {
+    fn default() -> Self {
+        Self::dirty()
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum DirtyingCause {
+    External,
+    Parent(NodeIndex),
+}
+
 struct WorldData {
-    dependencies: Graph<bool>,
+    dependencies: Graph<DirtyFlag>,
 }
 
 pub struct World(Rc<RefCell<WorldData>>);
@@ -82,35 +146,46 @@ impl World {
         })))
     }
 
-    pub fn mark_dirty(&self, node: NodeIndex) {
+    pub fn mark_dirty(&self, node: NodeIndex, cause: DirtyingCause) {
         let mut wd = self.0.borrow_mut();
-        let old_dirty = wd.dependencies[node];
-        if !old_dirty {
+        let old_dirty = &wd.dependencies[node];
+        if !old_dirty.is_dirty() {
             wd.dependencies.search_children_mut(
-                |child| {
-                    if !*child {
-                        *child = true;
-                        SearchContinuation::Continue
+                |child, child_idx, state| {
+                    let was_dirtied = child.mark(state);
+                    if was_dirtied {
+                        SearchContinuation::Continue(DirtyingCause::Parent(child_idx))
                     } else {
                         SearchContinuation::Stop
                     }
                 },
                 node,
+                cause,
             );
         }
     }
 
     pub fn is_dirty(&self, node: NodeIndex) -> bool {
         let wd = self.0.borrow();
-        wd.dependencies[node]
+        wd.dependencies[node].is_dirty()
     }
 
     pub fn unmark(&self, node: NodeIndex) {
-        self.0.borrow_mut().dependencies[node] = false;
+        self.0.borrow_mut().dependencies[node].unmark();
+    }
+
+    pub fn reset_dirty_state(&self, node: NodeIndex) -> DirtyFlag {
+        replace(
+            &mut self.0.borrow_mut().dependencies[node],
+            DirtyFlag::clean(),
+        )
     }
 
     pub fn create_node(&self) -> NodeIndex {
-        self.0.borrow_mut().dependencies.add_node(true)
+        self.0
+            .borrow_mut()
+            .dependencies
+            .add_node(DirtyFlag::dirty())
     }
 
     pub fn destroy_node(&self, node: NodeIndex) {
@@ -168,6 +243,7 @@ pub trait ComputationCore {
     fn remove_dependency(&mut self, child: NodeIndex);
     fn is_dirty(&self) -> bool;
     fn world(&self) -> &World;
+    fn node(&self) -> NodeIndex;
 }
 
 pub trait Signal<'a, S: 'a> {
@@ -179,6 +255,7 @@ pub trait Signal<'a, S: 'a> {
     fn create_reader(&self) -> ReaderToken;
     fn destroy_reader(&self, reader: ReaderToken);
     fn is_dirty(&self) -> bool;
+    fn node(&self) -> NodeIndex;
 }
 
 pub struct StreamSignal<'a, T: Data + 'a>(
@@ -222,6 +299,10 @@ impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
 
     fn is_dirty(&self) -> bool {
         self.0.borrow().is_dirty()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.0.borrow().node()
     }
 }
 
@@ -323,6 +404,10 @@ impl<'a, T: Data + 'a> Signal<'a, SingleComputationResult<T>> for ValueSignal<'a
 
     fn is_dirty(&self) -> bool {
         self.0.borrow().is_dirty()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.0.borrow().node()
     }
 }
 
@@ -534,8 +619,12 @@ impl NodeState {
         self.0.unmark(self.1)
     }
 
-    pub fn mark_dirty(&self) {
-        self.0.mark_dirty(self.1)
+    pub fn reset_dirty_state(&self) -> DirtyFlag {
+        self.0.reset_dirty_state(self.1)
+    }
+
+    pub fn mark_dirty(&self, cause: DirtyingCause) {
+        self.0.mark_dirty(self.1, cause)
     }
 }
 
@@ -983,9 +1072,13 @@ mod tests {
         send1(1);
         send2(1);
         send1(2);
-        assert_eq!(vec![1, 1, 2], collect_all(&mut c));
+        let mut x = collect_all(&mut c);
+        x.sort();
+        assert_eq!(vec![1, 1, 2], x);
         send1(3);
         send2(4);
-        assert_eq!(vec![3, 4], collect_all(&mut c));
+        let mut x = collect_all(&mut c);
+        x.sort();
+        assert_eq!(vec![3, 4], x);
     }
 }

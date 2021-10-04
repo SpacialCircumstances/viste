@@ -61,6 +61,10 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> ComputationCore for Map
     fn world(&self) -> &World {
         self.node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
+    }
 }
 
 pub struct Mapper2<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a> {
@@ -134,5 +138,9 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> ComputationCore
 
     fn world(&self) -> &World {
         self.node.world()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
     }
 }

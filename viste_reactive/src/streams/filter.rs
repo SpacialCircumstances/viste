@@ -60,4 +60,8 @@ impl<'a, T: Data, F: Fn(&T) -> bool + 'a> ComputationCore for Filter<'a, T, F> {
     fn world(&self) -> &World {
         self.node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
+    }
 }

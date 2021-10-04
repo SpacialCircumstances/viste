@@ -58,4 +58,8 @@ impl<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> ComputationCore for Map
     fn world(&self) -> &World {
         self.own_node.world()
     }
+
+    fn node(&self) -> NodeIndex {
+        self.own_node.node()
+    }
 }

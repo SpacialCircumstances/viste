@@ -16,7 +16,7 @@ impl<'a, T: Data + 'a> Portal<T> {
 
     pub fn send(&mut self, value: T) {
         self.store.push(value);
-        self.node.mark_dirty();
+        self.node.mark_dirty(DirtyingCause::External)
     }
 }
 
@@ -50,5 +50,9 @@ impl<'a, T: Data + 'a> ComputationCore for Portal<T> {
 
     fn world(&self) -> &World {
         self.node.world()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.node.node()
     }
 }
