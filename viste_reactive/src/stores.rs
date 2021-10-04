@@ -42,6 +42,10 @@ impl<T: Data> SingleValueStore<T> {
             SingleComputationResult::Unchanged
         }
     }
+
+    pub fn get(&self) -> T {
+        self.value.cheap_clone()
+    }
 }
 
 impl<T: Data> Store for SingleValueStore<T> {

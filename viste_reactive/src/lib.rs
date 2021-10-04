@@ -1,6 +1,7 @@
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
 use crate::readers::{Reader, StreamReader};
 use crate::streams::combine_mapper::CombineMapper;
+use crate::streams::counter::Counter;
 use crate::streams::from_iter::FromIter;
 use crate::streams::last::Last;
 use crate::streams::many::Many;
@@ -319,6 +320,10 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
             self.clone(),
             mapper,
         ))
+    }
+
+    pub fn count(&self) -> ValueSignal<'a, u64> {
+        ValueSignal::create(Counter::new(self.world(), self.clone()))
     }
 
     pub fn last(&self, initial: T) -> ValueSignal<'a, T> {
