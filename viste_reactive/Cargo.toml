@@ -13,5 +13,5 @@ simple_logger = "1.11.0"
 criterion = "0.3"
 
 [[bench]]
-name = "simple"
+name = "bench"
 harness = false
