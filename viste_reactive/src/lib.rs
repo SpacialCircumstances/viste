@@ -1086,4 +1086,17 @@ mod tests {
         x.sort();
         assert_eq!(vec![3, 4], x);
     }
+
+    #[test]
+    fn test_count() {
+        let world = World::new();
+        let (send, s) = portal(&world);
+        let v = s.count();
+        assert_eq!(0, read_once(&v));
+        send(1);
+        assert_eq!(1, read_once(&v));
+        send(2);
+        send(3);
+        assert_eq!(3, read_once(&v));
+    }
 }
