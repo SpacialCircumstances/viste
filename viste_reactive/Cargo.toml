@@ -10,3 +10,8 @@ log = "0.4"
 
 [dev-dependencies]
 simple_logger = "1.11.0"
+criterion = "0.3"
+
+[[bench]]
+name = "simple"
+harness = false
