@@ -16,6 +16,45 @@ pub fn simple_benchmark(c: &mut Criterion) {
     });
 }
 
+fn generate_tree<'a>(
+    world: &'a World,
+    setters: &mut Vec<Box<dyn Fn(i32)>>,
+    depth: u32,
+    max_depth: u32,
+) -> ValueSignal<'a, i32> {
+    if depth == max_depth {
+        let (set, v) = mutable(&world, 0);
+        setters.push(Box::new(set));
+        v
+    } else {
+        let s1 = generate_tree(world, setters, depth + 1, max_depth);
+        let s2 = generate_tree(world, setters, depth + 1, max_depth);
+        let m1 = s1.map(|i| i + 1);
+        let m2 = s2.map(|i| i + 1);
+        map2(&m1, &m2, |i1, i2| i1 + i2)
+    }
+}
+
+pub fn values_benchmark(c: &mut Criterion) {
+    let world = World::new();
+    let mut setters = Vec::new();
+    let root = generate_tree(&world, &mut setters, 0, 14);
+
+    c.bench_function("value propagation in complex graph", |b| {
+        b.iter(|| {
+            for i in 0..5 {
+                for setter in &setters {
+                    (setter)(black_box(i))
+                }
+            }
+
+            let r = root.create_reader();
+            let v = root.compute(r).unwrap_changed();
+            root.destroy_reader(r);
+        })
+    });
+}
+
 pub fn stream_benchmark(c: &mut Criterion) {
     c.bench_function("stream many", |b| {
         b.iter(|| {
@@ -46,5 +85,10 @@ pub fn stream_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, simple_benchmark, stream_benchmark);
+criterion_group!(
+    benches,
+    simple_benchmark,
+    values_benchmark,
+    stream_benchmark
+);
 criterion_main!(benches);
