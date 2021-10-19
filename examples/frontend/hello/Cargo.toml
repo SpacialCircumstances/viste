@@ -1,12 +1,13 @@
 [package]
-name = "viste_frontend"
+name = "hello"
 version = "0.1.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-viste_reactive = { path = "../viste_reactive" }
+viste_reactive = { path = "../../../viste_reactive" }
+viste_frontend = { path = "../../../viste_frontend" }
 quetta = "0.1.0"
 wasm-bindgen = "0.2"
 
