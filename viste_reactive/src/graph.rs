@@ -3,8 +3,9 @@ use std::collections::vec_deque::VecDeque;
 use std::fmt::{Debug, Display, Formatter};
 use std::mem::replace;
 use std::ops::{Index, IndexMut};
+use tinyvec::TinyVec;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 pub struct NodeIndex(usize);
 
 impl Display for NodeIndex {
@@ -15,8 +16,8 @@ impl Display for NodeIndex {
 
 #[derive(Debug)]
 struct Adjacency {
-    parents: Vec<usize>,
-    children: Vec<usize>,
+    parents: TinyVec<[usize; 2]>,
+    children: TinyVec<[usize; 4]>,
 }
 
 enum Node<T> {
@@ -35,7 +36,7 @@ pub enum SearchContinuation<T> {
     Stop,
 }
 
-fn remove_from<T: Eq>(vec: &mut Vec<T>, element: T) {
+fn remove_from<T: Eq, A: tinyvec::Array<Item = T>>(vec: &mut TinyVec<A>, element: T) {
     if let Some(child_pos) = vec.iter().position(|x| *x == element) {
         vec.swap_remove(child_pos);
     }
@@ -100,8 +101,8 @@ impl<T> Graph<T> {
         let node = Node::Filled(
             value,
             Adjacency {
-                parents: Vec::new(),
-                children: Vec::new(),
+                parents: TinyVec::new(),
+                children: TinyVec::new(),
             },
         );
         let ni = match self.free_nodes.pop_front() {

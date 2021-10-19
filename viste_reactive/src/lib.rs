@@ -20,6 +20,7 @@ use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
 use std::mem::replace;
 use std::rc::Rc;
+use tinyvec::TinyVec;
 
 pub mod collections;
 pub mod graph;
@@ -74,7 +75,7 @@ impl<T: Data> Data for Distinct<T> {
 #[derive(Debug, Clone)]
 pub enum DirtyFlag {
     Basic(bool),
-    Changed(Vec<NodeIndex>), //TODO: Investigate smallvec
+    Changed(TinyVec<[NodeIndex; 2]>),
 }
 
 impl DirtyFlag {
@@ -115,7 +116,9 @@ impl DirtyFlag {
             }
             (d, DirtyingCause::Parent(p)) => {
                 //d must automatically be DirtyFlag::Basic(false)
-                *d = DirtyFlag::Changed(vec![p]);
+                let mut v = TinyVec::new();
+                v.push(p);
+                *d = DirtyFlag::Changed(v);
                 true
             }
         }
