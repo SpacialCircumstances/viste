@@ -10,8 +10,4 @@ fn main() {
     let main_element = document
         .get_element_by_id("app")
         .expect("Where is my element?");
-    render(
-        Component::new(move |()| constant(&world, El::Text(Text::new("Hello World!")))),
-        main_element,
-    )
 }
