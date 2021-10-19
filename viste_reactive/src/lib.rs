@@ -29,13 +29,13 @@ pub mod stores;
 mod streams;
 mod values;
 
-pub trait Data: Debug {
+pub trait Data {
     fn changed(&self, other: &Self) -> bool;
     fn cheap_clone(&self) -> Self;
 }
 
 //TODO: Find a way to only impl for Rc, Arc, T: Copy
-impl<T: Debug + Clone + PartialEq> Data for T {
+impl<T: Clone + PartialEq> Data for T {
     fn changed(&self, other: &T) -> bool {
         self != other
     }
@@ -462,14 +462,6 @@ impl<'a, T: Data + 'a> ValueSignal<'a, T> {
 impl<'a, T: Data + 'a> ValueSignal<'a, ValueSignal<'a, T>> {
     pub fn flatten(&self) -> ValueSignal<'a, T> {
         self.bind(|v| v)
-    }
-}
-
-impl<'a, T: Data + 'a> Debug for ValueSignal<'a, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let dirty = self.is_dirty();
-        let value = read_once(self);
-        write!(f, "Signal {{ dirty: {}, value: {:?} }}", dirty, value)
     }
 }
 
