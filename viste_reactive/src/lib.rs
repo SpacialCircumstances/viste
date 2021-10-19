@@ -206,6 +206,12 @@ impl World {
     }
 }
 
+impl Debug for World {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", &self.0.borrow().dependencies)
+    }
+}
+
 impl Default for World {
     fn default() -> Self {
         Self::new()
