@@ -53,37 +53,66 @@ impl<'a> ReactiveHtml<'a> {
             dom,
         }
     }
+
+    fn reconcile_attr(&self, change: &SetChange<Attribute>) {
+        match change {
+            SetChange::Clear => {
+                let attrs = self.dom.get_attribute_names();
+                for attr in attrs.iter().filter_map(|a| a.as_string()) {
+                    self.dom.remove_attribute(&attr);
+                }
+            }
+            SetChange::Removed(attr) => {
+                self.dom.remove_attribute(attr.0.as_str());
+            }
+            SetChange::Added(attr) => {
+                self.dom.set_attribute(attr.0.as_str(), attr.1.as_str());
+            }
+        }
+    }
+
+    fn reconcile_child(&self, change: &SetChange<HtmlSignal<'a>>) {}
 }
 
 impl<'a> ComputationCore for ReactiveHtml<'a> {
     type ComputationResult = ();
 
     fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult {
-        if self.node.is_dirty() {}
+        if self.is_dirty() {
+            self.attributes.update();
+            for attr_change in self.attributes.iter() {
+                self.reconcile_attr(attr_change);
+            }
+            self.attributes.clear();
+
+            self.children.update();
+            for children_change in self.children.iter() {
+                self.reconcile_child(children_change);
+            }
+            self.children.clear()
+        }
     }
 
     fn create_reader(&mut self) -> ReaderToken {
-        todo!()
+        ReaderToken::default()
     }
 
-    fn destroy_reader(&mut self, reader: ReaderToken) {
-        todo!()
-    }
+    fn destroy_reader(&mut self, reader: ReaderToken) {}
 
     fn add_dependency(&mut self, child: NodeIndex) {
-        todo!()
+        self.node.add_dependency(child)
     }
 
     fn remove_dependency(&mut self, child: NodeIndex) {
-        todo!()
+        self.node.remove_dependency(child)
     }
 
     fn is_dirty(&self) -> bool {
-        todo!()
+        self.node.is_dirty()
     }
 
     fn world(&self) -> &World {
-        todo!()
+        self.node.world()
     }
 
     fn node(&self) -> NodeIndex {
