@@ -75,7 +75,7 @@ impl<T: Data> Data for Distinct<T> {
 #[derive(Debug, Clone)]
 pub enum DirtyFlag {
     Basic(bool),
-    Changed(TinyVec<[NodeIndex; 4]>), //TODO: Investigate smallvec
+    Changed(TinyVec<[NodeIndex; 2]>),
 }
 
 impl DirtyFlag {

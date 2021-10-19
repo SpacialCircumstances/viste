@@ -16,8 +16,8 @@ impl Display for NodeIndex {
 
 #[derive(Debug)]
 struct Adjacency {
-    parents: TinyVec<[usize; 4]>,
-    children: TinyVec<[usize; 8]>,
+    parents: TinyVec<[usize; 2]>,
+    children: TinyVec<[usize; 4]>,
 }
 
 enum Node<T> {
