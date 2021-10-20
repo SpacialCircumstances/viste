@@ -168,20 +168,25 @@ impl<'a, T: Data + 'a> CollectionPortal<'a, T> {
     }
 }
 
+pub trait View<'a, 'b, T: Data + 'a> {
+    type Item;
+    fn update(&mut self);
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b>;
+    fn iter(&'b mut self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        self.update();
+        self.iter_unchanged()
+    }
+}
+
 pub struct HashSetView<'a, T: Data + Hash + Eq + 'a> {
     collector: Collector<'a, SetChange<T>>,
     data: HashSet<T>,
 }
 
-impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
-    pub fn new(signal: CollectionSignal<'a, T>) -> Self {
-        Self {
-            collector: signal.0.collect(),
-            data: HashSet::new(),
-        }
-    }
+impl<'a: 'b, 'b, T: Data + Hash + Eq + 'a> View<'a, 'b, T> for HashSetView<'a, T> {
+    type Item = &'b T;
 
-    pub fn update(&mut self) {
+    fn update(&mut self) {
         self.collector.update();
         let store = &mut self.data;
 
@@ -200,22 +205,26 @@ impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
         self.collector.clear();
     }
 
-    pub fn unchanged_data(&self) -> &HashSet<T> {
-        &self.data
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        Box::new(self.data.iter())
+    }
+}
+
+impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
+    pub fn new(signal: CollectionSignal<'a, T>) -> Self {
+        Self {
+            collector: signal.0.collect(),
+            data: HashSet::new(),
+        }
     }
 
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = &T> {
-        self.data.iter()
+    pub fn data_unchanged(&self) -> &HashSet<T> {
+        &self.data
     }
 
     pub fn data(&mut self) -> &HashSet<T> {
         self.update();
-        self.unchanged_data()
-    }
-
-    pub fn iter(&mut self) -> impl Iterator<Item = &T> {
-        self.update();
-        self.unchanged_iter()
+        self.data_unchanged()
     }
 }
 
@@ -232,7 +241,20 @@ impl<'a, T: Data + Eq + Ord + 'a> BTreeSetView<'a, T> {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn data_unchanged(&self) -> &BTreeSet<T> {
+        &self.data
+    }
+
+    pub fn data(&mut self) -> &BTreeSet<T> {
+        self.update();
+        self.data_unchanged()
+    }
+}
+
+impl<'a: 'b, 'b, T: Data + Eq + Ord + 'a> View<'a, 'b, T> for BTreeSetView<'a, T> {
+    type Item = &'b T;
+
+    fn update(&mut self) {
         self.collector.update();
         let store = &mut self.data;
 
@@ -251,22 +273,8 @@ impl<'a, T: Data + Eq + Ord + 'a> BTreeSetView<'a, T> {
         self.collector.clear();
     }
 
-    pub fn unchanged_data(&self) -> &BTreeSet<T> {
-        &self.data
-    }
-
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = &T> {
-        self.data.iter()
-    }
-
-    pub fn data(&mut self) -> &BTreeSet<T> {
-        self.update();
-        self.unchanged_data()
-    }
-
-    pub fn iter(&mut self) -> impl Iterator<Item = &T> {
-        self.update();
-        self.unchanged_iter()
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        Box::new(self.data.iter())
     }
 }
 
@@ -291,7 +299,22 @@ impl<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> HashMapView<'a, T, K, V> {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn unchanged_data(&self) -> &HashMap<K, V> {
+        &self.data
+    }
+
+    pub fn data(&mut self) -> &HashMap<K, V> {
+        self.update();
+        self.unchanged_data()
+    }
+}
+
+impl<'a: 'b, 'b, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> View<'a, 'b, T>
+    for HashMapView<'a, T, K, V>
+{
+    type Item = (&'b K, &'b V);
+
+    fn update(&mut self) {
         self.collector.update();
         let store = &mut self.data;
         let kf = &self.key_func;
@@ -312,22 +335,8 @@ impl<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> HashMapView<'a, T, K, V> {
         self.collector.clear();
     }
 
-    pub fn unchanged_data(&self) -> &HashMap<K, V> {
-        &self.data
-    }
-
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = (&K, &V)> {
-        self.data.iter()
-    }
-
-    pub fn data(&mut self) -> &HashMap<K, V> {
-        self.update();
-        self.unchanged_data()
-    }
-
-    pub fn iter(&mut self) -> impl Iterator<Item = (&K, &V)> {
-        self.update();
-        self.unchanged_iter()
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        Box::new(self.data.iter())
     }
 }
 
@@ -352,7 +361,22 @@ impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> BTreeMapView<'a, T, K, V> {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn unchanged_data(&self) -> &BTreeMap<K, V> {
+        &self.data
+    }
+
+    pub fn data(&mut self) -> &BTreeMap<K, V> {
+        self.update();
+        self.unchanged_data()
+    }
+}
+
+impl<'a: 'b, 'b, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> View<'a, 'b, T>
+    for BTreeMapView<'a, T, K, V>
+{
+    type Item = (&'b K, &'b V);
+
+    fn update(&mut self) {
         self.collector.update();
         let store = &mut self.data;
         let kf = &self.key_func;
@@ -373,22 +397,8 @@ impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> BTreeMapView<'a, T, K, V> {
         self.collector.clear();
     }
 
-    pub fn unchanged_data(&self) -> &BTreeMap<K, V> {
-        &self.data
-    }
-
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = (&K, &V)> {
-        self.data.iter()
-    }
-
-    pub fn data(&mut self) -> &BTreeMap<K, V> {
-        self.update();
-        self.unchanged_data()
-    }
-
-    pub fn iter(&mut self) -> impl Iterator<Item = (&K, &V)> {
-        self.update();
-        self.unchanged_iter()
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        Box::new(self.data.iter())
     }
 }
 
