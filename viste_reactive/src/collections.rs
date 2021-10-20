@@ -736,4 +736,19 @@ mod tests {
         setp.clear();
         assert!(view.data().is_empty())
     }
+
+    #[test]
+    fn test_later_attachment_1() {
+        let world = World::new();
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new(&world);
+        let mut view1 = setp.signal().view_vec();
+        setp.add(0);
+        setp.add(1);
+        assert_eq!(view1.data(), &vec![0, 1]);
+        let mut view2 = setp.signal().view_vec();
+        assert_eq!(view2.data(), &vec![0, 1]);
+        setp.add(3);
+        assert_eq!(view1.data(), &vec![0, 1, 3]);
+        assert_eq!(view2.data(), &vec![0, 1, 3]);
+    }
 }
