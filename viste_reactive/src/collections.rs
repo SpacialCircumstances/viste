@@ -423,7 +423,20 @@ impl<'a, T: Data + 'a, R: 'a> VecIndexView<'a, T, R> {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn unchanged_data(&self) -> &Vec<Option<R>> {
+        &self.data
+    }
+
+    pub fn data(&mut self) -> &Vec<Option<R>> {
+        self.update();
+        self.unchanged_data()
+    }
+}
+
+impl<'a: 'b, 'b, T: Data + 'a, R: 'a> View<'a, 'b, T> for VecIndexView<'a, T, R> {
+    type Item = &'b Option<R>;
+
+    fn update(&mut self) {
         self.collector.update();
         let store = &mut self.data;
         let idxf = &self.index_func;
@@ -448,22 +461,8 @@ impl<'a, T: Data + 'a, R: 'a> VecIndexView<'a, T, R> {
         self.collector.clear();
     }
 
-    pub fn unchanged_data(&self) -> &Vec<Option<R>> {
-        &self.data
-    }
-
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = &Option<R>> {
-        self.data.iter()
-    }
-
-    pub fn data(&mut self) -> &Vec<Option<R>> {
-        self.update();
-        self.unchanged_data()
-    }
-
-    pub fn iter(&mut self) -> impl Iterator<Item = &Option<R>> {
-        self.update();
-        self.unchanged_iter()
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        Box::new(self.data.iter())
     }
 }
 
@@ -480,7 +479,20 @@ impl<'a, T: Data + PartialEq + 'a> VecView<'a, T> {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn unchanged_data(&self) -> &Vec<T> {
+        &self.data
+    }
+
+    pub fn data(&mut self) -> &Vec<T> {
+        self.update();
+        self.unchanged_data()
+    }
+}
+
+impl<'a: 'b, 'b, T: Data + PartialEq + 'a> View<'a, 'b, T> for VecView<'a, T> {
+    type Item = &'b T;
+
+    fn update(&mut self) {
         self.collector.update();
         let store = &mut self.data;
         self.collector
@@ -497,22 +509,8 @@ impl<'a, T: Data + PartialEq + 'a> VecView<'a, T> {
             })
     }
 
-    pub fn unchanged_data(&self) -> &Vec<T> {
-        &self.data
-    }
-
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = &T> {
-        self.data.iter()
-    }
-
-    pub fn data(&mut self) -> &Vec<T> {
-        self.update();
-        self.unchanged_data()
-    }
-
-    pub fn iter(&mut self) -> impl Iterator<Item = &T> {
-        self.update();
-        self.unchanged_iter()
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        Box::new(self.data.iter())
     }
 }
 
@@ -531,7 +529,31 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn unchanged_data(&self) -> &Vec<(K, T)> {
+        &self.data
+    }
+
+    pub fn unchanged_iter(&self) -> impl Iterator<Item = &(K, T)> {
+        self.data.iter()
+    }
+
+    pub fn data(&mut self) -> &Vec<(K, T)> {
+        self.update();
+        self.unchanged_data()
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = &(K, T)> {
+        self.update();
+        self.unchanged_iter()
+    }
+}
+
+impl<'a: 'b, 'b, T: Data + 'a, K: Copy + Eq + Ord + 'a> View<'a, 'b, T>
+    for OrderedVecView<'a, T, K>
+{
+    type Item = &'b (K, T);
+
+    fn update(&mut self) {
         self.collector.update();
         let store = &mut self.data;
         let keyf = &self.key_func;
@@ -560,22 +582,8 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
         self.collector.clear();
     }
 
-    pub fn unchanged_data(&self) -> &Vec<(K, T)> {
-        &self.data
-    }
-
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = &(K, T)> {
-        self.data.iter()
-    }
-
-    pub fn data(&mut self) -> &Vec<(K, T)> {
-        self.update();
-        self.unchanged_data()
-    }
-
-    pub fn iter(&mut self) -> impl Iterator<Item = &(K, T)> {
-        self.update();
-        self.unchanged_iter()
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        Box::new(self.data.iter())
     }
 }
 
@@ -588,17 +596,17 @@ mod tests {
         let world = World::new();
         let mut setp = CollectionPortal::new(&world);
         let mut view = setp.signal().view_set_hash();
-        assert!(view.unchanged_data().is_empty());
+        assert!(view.data_unchanged().is_empty());
         setp.add(2);
         view.update();
-        assert!(view.unchanged_data().contains(&2));
+        assert!(view.data_unchanged().contains(&2));
         setp.remove(2);
         setp.add(3);
         view.update();
-        assert!(!view.unchanged_data().contains(&2));
+        assert!(!view.data_unchanged().contains(&2));
         setp.clear();
         view.update();
-        assert!(view.unchanged_data().is_empty());
+        assert!(view.data_unchanged().is_empty());
     }
 
     #[test]
@@ -606,17 +614,17 @@ mod tests {
         let world = World::new();
         let mut setp = CollectionPortal::new(&world);
         let mut view = setp.signal().view_set_btree();
-        assert!(view.unchanged_data().is_empty());
+        assert!(view.data_unchanged().is_empty());
         setp.add(2);
         view.update();
-        assert!(view.unchanged_data().contains(&2));
+        assert!(view.data_unchanged().contains(&2));
         setp.remove(2);
         setp.add(3);
         view.update();
-        assert!(!view.unchanged_data().contains(&2));
+        assert!(!view.data_unchanged().contains(&2));
         setp.clear();
         view.update();
-        assert!(view.unchanged_data().is_empty());
+        assert!(view.data_unchanged().is_empty());
     }
 
     #[test]
