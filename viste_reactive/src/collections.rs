@@ -1,6 +1,7 @@
 use crate::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
+use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub enum SetChange<T: Data> {
@@ -28,31 +29,86 @@ impl<T: Data> Data for SetChange<T> {
     }
 }
 
-pub struct CollectionSignal<'a, T: Data + 'a>(StreamSignal<'a, SetChange<T>>);
-
-impl<'a, T: Data + 'a> Clone for CollectionSignal<'a, T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
+pub trait View<'a, 'b, T: Data + 'a> {
+    type Item;
+    fn update(&mut self);
+    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b>;
+    fn iter(&'b mut self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+        self.update();
+        self.iter_unchanged()
     }
 }
 
-impl<'a, T: Data + 'a> From<StreamSignal<'a, SetChange<T>>> for CollectionSignal<'a, T> {
+pub trait DirectView<'a, T: Data + 'a>: View<'a, 'a, T, Item = &'a T> {
+    fn new(collector: Collector<'a, SetChange<T>>) -> Self;
+}
+
+pub struct SharedView<'a, 'b, T: Data + 'a + 'b, V: View<'a, 'b, T>>(
+    Rc<RefCell<V>>,
+    PhantomData<&'a T>,
+    PhantomData<&'b T>,
+);
+
+impl<'a, 'b, T: Data + 'a + 'b, V: View<'a, 'b, T>> Clone for SharedView<'a, 'b, T, V> {
+    fn clone(&self) -> Self {
+        Self(
+            self.0.clone(),
+            PhantomData::default(),
+            PhantomData::default(),
+        )
+    }
+}
+
+impl<'a, 'b, T: Data + 'a, V: View<'a, 'b, T>> SharedView<'a, 'b, T, V> {
+    pub fn new(view: V) -> Self {
+        Self(
+            Rc::new(RefCell::new(view)),
+            PhantomData::default(),
+            PhantomData::default(),
+        )
+    }
+}
+
+pub struct CollectionSignal<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> {
+    stream: StreamSignal<'a, SetChange<T>>,
+    view: SharedView<'a, 'a, T, D>,
+}
+
+impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> Clone for CollectionSignal<'a, T, D> {
+    fn clone(&self) -> Self {
+        Self {
+            stream: self.stream.clone(),
+            view: self.view.clone(),
+        }
+    }
+}
+
+impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> From<StreamSignal<'a, SetChange<T>>>
+    for CollectionSignal<'a, T, D>
+{
     fn from(stream: StreamSignal<'a, SetChange<T>>) -> Self {
         CollectionSignal::new(stream)
     }
 }
 
-impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
+impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> CollectionSignal<'a, T, D> {
     pub fn new(stream: StreamSignal<'a, SetChange<T>>) -> Self {
-        CollectionSignal(stream)
+        let view = D::new(stream.collect());
+        Self {
+            stream,
+            view: SharedView::new(view),
+        }
     }
 
     pub fn changes(&self) -> StreamSignal<'a, SetChange<T>> {
-        self.0.clone()
+        self.stream.clone()
     }
 
-    pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> CollectionSignal<'a, R> {
-        self.0
+    pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a, D2: DirectView<'a, R>>(
+        &self,
+        mapper: M,
+    ) -> CollectionSignal<'a, R, D2> {
+        self.stream
             .map(move |c| match c {
                 SetChange::Added(t) => SetChange::Added(mapper(t)),
                 SetChange::Removed(t) => SetChange::Removed(mapper(t)),
@@ -61,8 +117,8 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
             .into()
     }
 
-    pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F) -> CollectionSignal<'a, T> {
-        self.0
+    pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F) -> CollectionSignal<'a, T, D> {
+        self.stream
             .filter(move |c| match c {
                 SetChange::Added(t) => filter(t),
                 SetChange::Removed(t) => filter(t),
@@ -71,11 +127,11 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
             .into()
     }
 
-    pub fn filter_map<O: Data + 'a, F: Fn(T) -> Option<O> + 'a>(
+    pub fn filter_map<O: Data + 'a, F: Fn(T) -> Option<O> + 'a, D2: DirectView<'a, O>>(
         &self,
         f: F,
-    ) -> CollectionSignal<'a, O> {
-        self.0
+    ) -> CollectionSignal<'a, O, D2> {
+        self.stream
             .filter_map(move |c| match c {
                 SetChange::Added(t) => f(t).map(SetChange::Added),
                 SetChange::Removed(t) => f(t).map(SetChange::Removed),
@@ -88,14 +144,14 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
     where
         T: Hash + Eq,
     {
-        HashSetView::new(self.clone())
+        HashSetView::new(self.stream.collect())
     }
 
     pub fn view_set_btree(&self) -> BTreeSetView<'a, T>
     where
         T: Ord + Eq,
     {
-        BTreeSetView::new(self.clone())
+        BTreeSetView::new(self.stream.collect())
     }
 
     pub fn view_map_hash<K: Hash + Eq + 'a, V: 'a, KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
@@ -103,7 +159,7 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
         key_func: KF,
         value_func: VF,
     ) -> HashMapView<'a, T, K, V> {
-        HashMapView::new(self.clone(), key_func, value_func)
+        HashMapView::new(self.stream.collect(), key_func, value_func)
     }
 
     pub fn view_map_btree<K: Ord + Eq + 'a, V: 'a, KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
@@ -111,7 +167,7 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
         key_func: KF,
         value_func: VF,
     ) -> BTreeMapView<'a, T, K, V> {
-        BTreeMapView::new(self.clone(), key_func, value_func)
+        BTreeMapView::new(self.stream.collect(), key_func, value_func)
     }
 
     pub fn view_vec_indexed<R: 'a, IF: Fn(&T) -> usize + 'a, VF: Fn(T) -> R + 'a>(
@@ -119,39 +175,39 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
         index_func: IF,
         value_func: VF,
     ) -> VecIndexView<'a, T, R> {
-        VecIndexView::new(self.clone(), index_func, value_func)
+        VecIndexView::new(self.stream.collect(), index_func, value_func)
     }
 
     pub fn view_vec_sorted<K: Copy + Ord + Eq + Data, KF: Fn(&T) -> K + 'a>(
         &self,
         key_func: KF,
     ) -> OrderedVecView<'a, T, K> {
-        OrderedVecView::new(self.clone(), key_func)
+        OrderedVecView::new(self.stream.collect(), key_func)
     }
 
     pub fn view_vec(&self) -> VecView<'a, T>
     where
         T: PartialEq,
     {
-        VecView::new(self.clone())
+        VecView::new(self.stream.collect())
     }
 }
 
-pub struct CollectionPortal<'a, T: Data + 'a> {
-    signal: CollectionSignal<'a, T>,
+pub struct CollectionPortal<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> {
+    signal: CollectionSignal<'a, T, D>,
     sender: Box<dyn Fn(SetChange<T>) + 'a>,
 }
 
-impl<'a, T: Data + 'a> CollectionPortal<'a, T> {
+impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> CollectionPortal<'a, T, D> {
     pub fn new(world: &World) -> Self {
         let (sender, signal) = portal(world);
         CollectionPortal {
             sender: Box::new(sender),
-            signal: CollectionSignal(signal),
+            signal: CollectionSignal::new(signal),
         }
     }
 
-    pub fn signal(&self) -> &CollectionSignal<'a, T> {
+    pub fn signal(&self) -> &CollectionSignal<'a, T, D> {
         &self.signal
     }
 
@@ -167,18 +223,6 @@ impl<'a, T: Data + 'a> CollectionPortal<'a, T> {
         (self.sender)(SetChange::Clear)
     }
 }
-
-pub trait View<'a, 'b, T: Data + 'a> {
-    type Item;
-    fn update(&mut self);
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b>;
-    fn iter(&'b mut self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
-        self.update();
-        self.iter_unchanged()
-    }
-}
-
-pub trait DirectView<'a, T: Data + 'a>: View<'a, 'a, T, Item = &'a T> {}
 
 pub struct HashSetView<'a, T: Data + Hash + Eq + 'a> {
     collector: Collector<'a, SetChange<T>>,
@@ -212,16 +256,16 @@ impl<'a: 'b, 'b, T: Data + Hash + Eq + 'a> View<'a, 'b, T> for HashSetView<'a, T
     }
 }
 
-impl<'a, T: Data + Hash + Eq + 'a> DirectView<'a, T> for HashSetView<'a, T> {}
-
-impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
-    pub fn new(signal: CollectionSignal<'a, T>) -> Self {
+impl<'a, T: Data + Hash + Eq + 'a> DirectView<'a, T> for HashSetView<'a, T> {
+    fn new(collector: Collector<'a, SetChange<T>>) -> Self {
         Self {
-            collector: signal.0.collect(),
             data: HashSet::new(),
+            collector,
         }
     }
+}
 
+impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
     pub fn data_unchanged(&self) -> &HashSet<T> {
         &self.data
     }
@@ -238,13 +282,6 @@ pub struct BTreeSetView<'a, T: Data + Eq + Ord + 'a> {
 }
 
 impl<'a, T: Data + Eq + Ord + 'a> BTreeSetView<'a, T> {
-    pub fn new(signal: CollectionSignal<'a, T>) -> Self {
-        Self {
-            collector: signal.0.collect(),
-            data: BTreeSet::new(),
-        }
-    }
-
     pub fn data_unchanged(&self) -> &BTreeSet<T> {
         &self.data
     }
@@ -282,7 +319,14 @@ impl<'a: 'b, 'b, T: Data + Eq + Ord + 'a> View<'a, 'b, T> for BTreeSetView<'a, T
     }
 }
 
-impl<'a, T: Data + Eq + Ord + 'a> DirectView<'a, T> for BTreeSetView<'a, T> {}
+impl<'a, T: Data + Eq + Ord + 'a> DirectView<'a, T> for BTreeSetView<'a, T> {
+    fn new(collector: Collector<'a, SetChange<T>>) -> Self {
+        Self {
+            collector,
+            data: BTreeSet::new(),
+        }
+    }
+}
 
 pub struct HashMapView<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> {
     collector: Collector<'a, SetChange<T>>,
@@ -293,12 +337,12 @@ pub struct HashMapView<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> {
 
 impl<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> HashMapView<'a, T, K, V> {
     pub fn new<KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
-        signal: CollectionSignal<'a, T>,
+        collector: Collector<'a, SetChange<T>>,
         key_func: KF,
         value_func: VF,
     ) -> Self {
         Self {
-            collector: signal.0.collect(),
+            collector,
             data: HashMap::new(),
             key_func: Box::new(key_func),
             value_func: Box::new(value_func),
@@ -355,12 +399,12 @@ pub struct BTreeMapView<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> {
 
 impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> BTreeMapView<'a, T, K, V> {
     pub fn new<KF: Fn(&T) -> K + 'a, VF: Fn(T) -> V + 'a>(
-        signal: CollectionSignal<'a, T>,
+        collector: Collector<'a, SetChange<T>>,
         key_func: KF,
         value_func: VF,
     ) -> Self {
         Self {
-            collector: signal.0.collect(),
+            collector,
             data: BTreeMap::new(),
             key_func: Box::new(key_func),
             value_func: Box::new(value_func),
@@ -417,12 +461,12 @@ pub struct VecIndexView<'a, T: Data + 'a, R: 'a> {
 
 impl<'a, T: Data + 'a, R: 'a> VecIndexView<'a, T, R> {
     pub fn new<IF: Fn(&T) -> usize + 'a, VF: Fn(T) -> R + 'a>(
-        signal: CollectionSignal<'a, T>,
+        collector: Collector<'a, SetChange<T>>,
         index_func: IF,
         value_func: VF,
     ) -> Self {
         Self {
-            collector: signal.0.collect(),
+            collector,
             data: Vec::new(),
             index_func: Box::new(index_func),
             value_func: Box::new(value_func),
@@ -478,13 +522,6 @@ pub struct VecView<'a, T: Data + PartialEq + 'a> {
 }
 
 impl<'a, T: Data + PartialEq + 'a> VecView<'a, T> {
-    pub fn new(signal: CollectionSignal<'a, T>) -> Self {
-        VecView {
-            data: Vec::new(),
-            collector: signal.0.collect(),
-        }
-    }
-
     pub fn unchanged_data(&self) -> &Vec<T> {
         &self.data
     }
@@ -520,7 +557,14 @@ impl<'a: 'b, 'b, T: Data + PartialEq + 'a> View<'a, 'b, T> for VecView<'a, T> {
     }
 }
 
-impl<'a, T: Data + PartialEq + 'a> DirectView<'a, T> for VecView<'a, T> {}
+impl<'a, T: Data + PartialEq + 'a> DirectView<'a, T> for VecView<'a, T> {
+    fn new(collector: Collector<'a, SetChange<T>>) -> Self {
+        Self {
+            collector,
+            data: Vec::new(),
+        }
+    }
+}
 
 pub struct OrderedVecView<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> {
     data: Vec<(K, T)>,
@@ -529,11 +573,11 @@ pub struct OrderedVecView<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> {
 }
 
 impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
-    pub fn new<KF: Fn(&T) -> K + 'a>(signal: CollectionSignal<'a, T>, key_func: KF) -> Self {
+    pub fn new<KF: Fn(&T) -> K + 'a>(collector: Collector<'a, SetChange<T>>, key_func: KF) -> Self {
         OrderedVecView {
             data: Vec::new(),
             key_func: Box::new(key_func),
-            collector: signal.0.collect(),
+            collector,
         }
     }
 
