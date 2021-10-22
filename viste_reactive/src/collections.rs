@@ -178,6 +178,8 @@ pub trait View<'a, 'b, T: Data + 'a> {
     }
 }
 
+pub trait DirectView<'a, T: Data + 'a>: View<'a, 'a, T, Item = &'a T> {}
+
 pub struct HashSetView<'a, T: Data + Hash + Eq + 'a> {
     collector: Collector<'a, SetChange<T>>,
     data: HashSet<T>,
@@ -209,6 +211,8 @@ impl<'a: 'b, 'b, T: Data + Hash + Eq + 'a> View<'a, 'b, T> for HashSetView<'a, T
         Box::new(self.data.iter())
     }
 }
+
+impl<'a, T: Data + Hash + Eq + 'a> DirectView<'a, T> for HashSetView<'a, T> {}
 
 impl<'a, T: Data + Hash + Eq + 'a> HashSetView<'a, T> {
     pub fn new(signal: CollectionSignal<'a, T>) -> Self {
@@ -277,6 +281,8 @@ impl<'a: 'b, 'b, T: Data + Eq + Ord + 'a> View<'a, 'b, T> for BTreeSetView<'a, T
         Box::new(self.data.iter())
     }
 }
+
+impl<'a, T: Data + Eq + Ord + 'a> DirectView<'a, T> for BTreeSetView<'a, T> {}
 
 pub struct HashMapView<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> {
     collector: Collector<'a, SetChange<T>>,
@@ -514,6 +520,8 @@ impl<'a: 'b, 'b, T: Data + PartialEq + 'a> View<'a, 'b, T> for VecView<'a, T> {
     }
 }
 
+impl<'a, T: Data + PartialEq + 'a> DirectView<'a, T> for VecView<'a, T> {}
+
 pub struct OrderedVecView<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> {
     data: Vec<(K, T)>,
     key_func: Box<dyn Fn(&T) -> K + 'a>,
@@ -533,18 +541,9 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
         &self.data
     }
 
-    pub fn unchanged_iter(&self) -> impl Iterator<Item = &(K, T)> {
-        self.data.iter()
-    }
-
     pub fn data(&mut self) -> &Vec<(K, T)> {
         self.update();
         self.unchanged_data()
-    }
-
-    pub fn iter(&mut self) -> impl Iterator<Item = &(K, T)> {
-        self.update();
-        self.unchanged_iter()
     }
 }
 
