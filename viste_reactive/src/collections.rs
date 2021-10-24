@@ -43,6 +43,7 @@ pub trait DirectView<'a, T: Data + 'a>: View<'a, 'a, T, Item = &'a T> {
     fn new(collector: Collector<'a, SetChange<T>>) -> Self;
 }
 
+#[derive(Eq, PartialEq)]
 pub struct SharedView<'a, 'b, T: Data + 'a + 'b, V: View<'a, 'b, T>>(
     Rc<RefCell<V>>,
     PhantomData<&'a T>,
@@ -69,6 +70,7 @@ impl<'a, 'b, T: Data + 'a, V: View<'a, 'b, T>> SharedView<'a, 'b, T, V> {
     }
 }
 
+#[derive(PartialEq, Eq)]
 pub struct CollectionSignal<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> {
     stream: StreamSignal<'a, SetChange<T>>,
     view: SharedView<'a, 'a, T, D>,
@@ -80,6 +82,46 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> Clone for CollectionSignal<'a,
             stream: self.stream.clone(),
             view: self.view.clone(),
         }
+    }
+}
+
+impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> Signal<'a, Option<SetChange<T>>>
+    for CollectionSignal<'a, T, D>
+{
+    fn create<C: ComputationCore<ComputationResult = Option<SetChange<T>>> + 'a>(r: C) -> Self {
+        Self::new(StreamSignal::create(r))
+    }
+
+    fn world(&self) -> World {
+        self.stream.world()
+    }
+
+    fn compute(&self, reader: ReaderToken) -> Option<SetChange<T>> {
+        self.stream.compute(reader)
+    }
+
+    fn add_dependency(&self, child: NodeIndex) {
+        self.stream.add_dependency(child)
+    }
+
+    fn remove_dependency(&self, child: NodeIndex) {
+        self.stream.remove_dependency(child)
+    }
+
+    fn create_reader(&self) -> ReaderToken {
+        self.stream.create_reader()
+    }
+
+    fn destroy_reader(&self, reader: ReaderToken) {
+        self.stream.destroy_reader(reader)
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.stream.is_dirty()
+    }
+
+    fn node(&self) -> NodeIndex {
+        self.stream.node()
     }
 }
 
