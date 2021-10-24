@@ -1,4 +1,5 @@
 use crate::*;
+use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -70,10 +71,44 @@ impl<'a, 'b, T: Data + 'a, V: View<'a, 'b, T>> SharedView<'a, 'b, T, V> {
     }
 }
 
-#[derive(PartialEq, Eq)]
+struct InitialItems<Item: Data>(Rc<RefCell<HashMap<ReaderToken, VecDeque<Item>>>>);
+
+impl<Item: Data> Clone for InitialItems<Item> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<Item: Data> InitialItems<Item> {
+    pub fn new() -> Self {
+        Self(Rc::new(RefCell::new(HashMap::new())))
+    }
+
+    pub fn insert(&self, reader: ReaderToken, items: VecDeque<Item>) {
+        let mut hm = self.0.borrow_mut();
+        hm.insert(reader, items);
+    }
+
+    pub fn get_next(&self, reader: ReaderToken) -> Option<Item> {
+        let mut hm = self.0.borrow_mut();
+        match hm.entry(reader) {
+            Entry::Vacant(_) => None,
+            Entry::Occupied(mut entry) => {
+                let deq = entry.get_mut();
+                let next = deq.pop_front();
+                if deq.is_empty() {
+                    entry.remove();
+                }
+                next
+            }
+        }
+    }
+}
+
 pub struct CollectionSignal<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> {
     stream: StreamSignal<'a, SetChange<T>>,
     view: SharedView<'a, 'a, T, D>,
+    initial_items: InitialItems<SetChange<T>>,
 }
 
 impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> Clone for CollectionSignal<'a, T, D> {
@@ -81,6 +116,7 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> Clone for CollectionSignal<'a,
         Self {
             stream: self.stream.clone(),
             view: self.view.clone(),
+            initial_items: self.initial_items.clone(),
         }
     }
 }
@@ -139,6 +175,7 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> CollectionSignal<'a, T, D> {
         Self {
             stream,
             view: SharedView::new(view),
+            initial_items: InitialItems::new(),
         }
     }
 

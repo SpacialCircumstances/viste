@@ -224,7 +224,7 @@ impl Clone for World {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq, Ord, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash)]
 pub struct ReaderToken(usize);
 
 #[derive(Debug, Eq, PartialEq)]
