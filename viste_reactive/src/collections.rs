@@ -30,44 +30,32 @@ impl<T: Data> Data for SetChange<T> {
     }
 }
 
-pub trait View<'a, 'b, T: Data + 'a> {
+pub trait View<'a, T: Data + 'a> {
     type Item;
     fn update(&mut self);
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b>;
-    fn iter(&'b mut self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+    fn iter_unchanged<'b>(&'b self) -> Box<dyn Iterator<Item = &'b Self::Item> + 'b>;
+    fn iter<'b>(&'b mut self) -> Box<dyn Iterator<Item = &'b Self::Item> + 'b> {
         self.update();
         self.iter_unchanged()
     }
 }
 
-pub trait DirectView<'a, T: Data + 'a>: View<'a, 'a, T, Item = &'a T> {
+pub trait DirectView<'a, T: Data + 'a>: View<'a, T, Item = T> {
     fn new(collector: Collector<'a, SetChange<T>>) -> Self;
 }
 
 #[derive(Eq, PartialEq)]
-pub struct SharedView<'a, 'b, T: Data + 'a + 'b, V: View<'a, 'b, T>>(
-    Rc<RefCell<V>>,
-    PhantomData<&'a T>,
-    PhantomData<&'b T>,
-);
+pub struct SharedView<'a, T: Data + 'a, V: View<'a, T>>(Rc<RefCell<V>>, PhantomData<&'a T>);
 
-impl<'a, 'b, T: Data + 'a + 'b, V: View<'a, 'b, T>> Clone for SharedView<'a, 'b, T, V> {
+impl<'a, T: Data + 'a, V: View<'a, T>> Clone for SharedView<'a, T, V> {
     fn clone(&self) -> Self {
-        Self(
-            self.0.clone(),
-            PhantomData::default(),
-            PhantomData::default(),
-        )
+        Self(self.0.clone(), PhantomData::default())
     }
 }
 
-impl<'a, 'b, T: Data + 'a, V: View<'a, 'b, T>> SharedView<'a, 'b, T, V> {
+impl<'a, T: Data + 'a, V: View<'a, T>> SharedView<'a, T, V> {
     pub fn new(view: V) -> Self {
-        Self(
-            Rc::new(RefCell::new(view)),
-            PhantomData::default(),
-            PhantomData::default(),
-        )
+        Self(Rc::new(RefCell::new(view)), PhantomData::default())
     }
 }
 
@@ -107,7 +95,7 @@ impl<Item: Data> InitialItems<Item> {
 
 pub struct CollectionSignal<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> {
     stream: StreamSignal<'a, SetChange<T>>,
-    view: SharedView<'a, 'a, T, D>,
+    view: SharedView<'a, T, D>,
     initial_items: InitialItems<SetChange<T>>,
 }
 
@@ -308,8 +296,8 @@ pub struct HashSetView<'a, T: Data + Hash + Eq + 'a> {
     data: HashSet<T>,
 }
 
-impl<'a: 'b, 'b, T: Data + Hash + Eq + 'a> View<'a, 'b, T> for HashSetView<'a, T> {
-    type Item = &'b T;
+impl<'a, T: Data + Hash + Eq + 'a> View<'a, T> for HashSetView<'a, T> {
+    type Item = T;
 
     fn update(&mut self) {
         self.collector.update();
@@ -330,7 +318,7 @@ impl<'a: 'b, 'b, T: Data + Hash + Eq + 'a> View<'a, 'b, T> for HashSetView<'a, T
         self.collector.clear();
     }
 
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+    fn iter_unchanged<'b>(&'b self) -> Box<dyn Iterator<Item = &Self::Item> + 'b> {
         Box::new(self.data.iter())
     }
 }
@@ -371,8 +359,8 @@ impl<'a, T: Data + Eq + Ord + 'a> BTreeSetView<'a, T> {
     }
 }
 
-impl<'a: 'b, 'b, T: Data + Eq + Ord + 'a> View<'a, 'b, T> for BTreeSetView<'a, T> {
-    type Item = &'b T;
+impl<'a, T: Data + Eq + Ord + 'a> View<'a, T> for BTreeSetView<'a, T> {
+    type Item = T;
 
     fn update(&mut self) {
         self.collector.update();
@@ -393,7 +381,7 @@ impl<'a: 'b, 'b, T: Data + Eq + Ord + 'a> View<'a, 'b, T> for BTreeSetView<'a, T
         self.collector.clear();
     }
 
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+    fn iter_unchanged<'b>(&'b self) -> Box<dyn Iterator<Item = &Self::Item> + 'b> {
         Box::new(self.data.iter())
     }
 }
@@ -438,10 +426,8 @@ impl<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> HashMapView<'a, T, K, V> {
     }
 }
 
-impl<'a: 'b, 'b, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> View<'a, 'b, T>
-    for HashMapView<'a, T, K, V>
-{
-    type Item = (&'b K, &'b V);
+impl<'a, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> View<'a, T> for HashMapView<'a, T, K, V> {
+    type Item = V;
 
     fn update(&mut self) {
         self.collector.update();
@@ -464,8 +450,8 @@ impl<'a: 'b, 'b, T: Data + 'a, K: Hash + Eq + 'a, V: 'a> View<'a, 'b, T>
         self.collector.clear();
     }
 
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
-        Box::new(self.data.iter())
+    fn iter_unchanged<'b>(&'b self) -> Box<dyn Iterator<Item = &Self::Item> + 'b> {
+        Box::new(self.data.values())
     }
 }
 
@@ -500,10 +486,8 @@ impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> BTreeMapView<'a, T, K, V> {
     }
 }
 
-impl<'a: 'b, 'b, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> View<'a, 'b, T>
-    for BTreeMapView<'a, T, K, V>
-{
-    type Item = (&'b K, &'b V);
+impl<'a, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> View<'a, T> for BTreeMapView<'a, T, K, V> {
+    type Item = V;
 
     fn update(&mut self) {
         self.collector.update();
@@ -526,8 +510,8 @@ impl<'a: 'b, 'b, T: Data + 'a, K: Ord + Eq + 'a, V: 'a> View<'a, 'b, T>
         self.collector.clear();
     }
 
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
-        Box::new(self.data.iter())
+    fn iter_unchanged<'b>(&'b self) -> Box<dyn Iterator<Item = &Self::Item> + 'b> {
+        Box::new(self.data.values())
     }
 }
 
@@ -562,8 +546,8 @@ impl<'a, T: Data + 'a, R: 'a> VecIndexView<'a, T, R> {
     }
 }
 
-impl<'a: 'b, 'b, T: Data + 'a, R: 'a> View<'a, 'b, T> for VecIndexView<'a, T, R> {
-    type Item = &'b Option<R>;
+impl<'a, T: Data + 'a, R: 'a> View<'a, T> for VecIndexView<'a, T, R> {
+    type Item = Option<R>;
 
     fn update(&mut self) {
         self.collector.update();
@@ -590,7 +574,7 @@ impl<'a: 'b, 'b, T: Data + 'a, R: 'a> View<'a, 'b, T> for VecIndexView<'a, T, R>
         self.collector.clear();
     }
 
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+    fn iter_unchanged<'b>(&'b self) -> Box<dyn Iterator<Item = &Self::Item> + 'b> {
         Box::new(self.data.iter())
     }
 }
@@ -611,8 +595,8 @@ impl<'a, T: Data + PartialEq + 'a> VecView<'a, T> {
     }
 }
 
-impl<'a: 'b, 'b, T: Data + PartialEq + 'a> View<'a, 'b, T> for VecView<'a, T> {
-    type Item = &'b T;
+impl<'a, T: Data + PartialEq + 'a> View<'a, T> for VecView<'a, T> {
+    type Item = T;
 
     fn update(&mut self) {
         self.collector.update();
@@ -631,7 +615,7 @@ impl<'a: 'b, 'b, T: Data + PartialEq + 'a> View<'a, 'b, T> for VecView<'a, T> {
             })
     }
 
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+    fn iter_unchanged<'b>(&'b self) -> Box<dyn Iterator<Item = &Self::Item> + 'b> {
         Box::new(self.data.iter())
     }
 }
@@ -670,10 +654,8 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> OrderedVecView<'a, T, K> {
     }
 }
 
-impl<'a: 'b, 'b, T: Data + 'a, K: Copy + Eq + Ord + 'a> View<'a, 'b, T>
-    for OrderedVecView<'a, T, K>
-{
-    type Item = &'b (K, T);
+impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> View<'a, T> for OrderedVecView<'a, T, K> {
+    type Item = (K, T);
 
     fn update(&mut self) {
         self.collector.update();
@@ -704,7 +686,7 @@ impl<'a: 'b, 'b, T: Data + 'a, K: Copy + Eq + Ord + 'a> View<'a, 'b, T>
         self.collector.clear();
     }
 
-    fn iter_unchanged(&'b self) -> Box<dyn Iterator<Item = Self::Item> + 'b> {
+    fn iter_unchanged<'b>(&'b self) -> Box<dyn Iterator<Item = &Self::Item> + 'b> {
         Box::new(self.data.iter())
     }
 }
