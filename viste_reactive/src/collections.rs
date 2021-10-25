@@ -73,8 +73,15 @@ impl<Item: Data> InitialItems<Item> {
     }
 
     pub fn insert(&self, reader: ReaderToken, items: VecDeque<Item>) {
+        if !items.is_empty() {
+            let mut hm = self.0.borrow_mut();
+            hm.insert(reader, items);
+        }
+    }
+
+    pub fn remove(&self, reader: ReaderToken) {
         let mut hm = self.0.borrow_mut();
-        hm.insert(reader, items);
+        hm.remove(&reader);
     }
 
     pub fn get_next(&self, reader: ReaderToken) -> Option<Item> {
