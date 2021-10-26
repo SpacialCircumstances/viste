@@ -57,6 +57,16 @@ impl<'a, T: Data + 'a, V: View<'a, T>> SharedView<'a, T, V> {
     pub fn new(view: V) -> Self {
         Self(Rc::new(RefCell::new(view)), PhantomData::default())
     }
+
+    pub fn to_queue<R: Data>(&self) -> VecDeque<SetChange<R>>
+    where
+        V: View<'a, T, Item = R>,
+    {
+        let mut view = self.0.borrow_mut();
+        view.iter()
+            .map(|t| SetChange::Added(t.cheap_clone()))
+            .collect()
+    }
 }
 
 struct InitialItems<Item: Data>(Rc<RefCell<HashMap<ReaderToken, VecDeque<Item>>>>);
@@ -128,7 +138,9 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> Signal<'a, Option<SetChange<T>
     }
 
     fn compute(&self, reader: ReaderToken) -> Option<SetChange<T>> {
-        self.stream.compute(reader)
+        self.initial_items
+            .get_next(reader)
+            .or_else(|| self.stream.compute(reader))
     }
 
     fn add_dependency(&self, child: NodeIndex) {
@@ -140,10 +152,14 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> Signal<'a, Option<SetChange<T>
     }
 
     fn create_reader(&self) -> ReaderToken {
-        self.stream.create_reader()
+        let reader = self.stream.create_reader();
+        let items = self.view.to_queue();
+        self.initial_items.insert(reader, items);
+        reader
     }
 
     fn destroy_reader(&self, reader: ReaderToken) {
+        self.initial_items.remove(reader);
         self.stream.destroy_reader(reader)
     }
 
