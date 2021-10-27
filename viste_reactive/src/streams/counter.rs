@@ -1,9 +1,8 @@
-use crate::readers::StreamReader;
 use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Counter<'a, T: Data + 'a> {
-    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, T>,
     value: SingleValueStore<u64>,
     node: NodeState,
 }
@@ -12,7 +11,7 @@ impl<'a, T: Data + 'a> Counter<'a, T> {
     pub fn new(world: World, source: StreamSignal<'a, T>) -> Self {
         let node = NodeState::new(world);
         Self {
-            source: ParentStreamSignal::new(source, node.node()),
+            source: ParentSignal::new(source, node.node()),
             value: SingleValueStore::new(0),
             node,
         }

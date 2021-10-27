@@ -651,8 +651,7 @@ fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
     value.unwrap_changed()
 }
 
-pub struct ParentStreamSignal<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>>
-{
+pub struct ParentSignal<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>> {
     parent: S,
     own_index: NodeIndex,
     reader: R,
@@ -660,7 +659,7 @@ pub struct ParentStreamSignal<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result
 }
 
 impl<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>>
-    ParentStreamSignal<'a, T, S, Res, R>
+    ParentSignal<'a, T, S, Res, R>
 {
     pub fn new(signal: S, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
@@ -685,13 +684,16 @@ impl<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>>
 }
 
 impl<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>> Drop
-    for ParentStreamSignal<'a, T, S, Res, R>
+    for ParentSignal<'a, T, S, Res, R>
 {
     fn drop(&mut self) {
         info!("Removing {} from parent", self.own_index);
         self.parent.remove_dependency(self.own_index);
     }
 }
+
+pub type ParentStreamSignal<'a, T> =
+    ParentSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>;
 
 pub struct Collector<'a, T: Data + 'a> {
     reader: StreamReader<'a, T>,

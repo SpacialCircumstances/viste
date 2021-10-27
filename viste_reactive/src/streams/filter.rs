@@ -1,9 +1,8 @@
-use crate::readers::StreamReader;
 use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
-    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, T>,
     store: BufferedStore<T>,
     filter: F,
     node: NodeState,
@@ -12,7 +11,7 @@ pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
 impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
     pub fn new(world: World, source: StreamSignal<'a, T>, filter: F) -> Self {
         let node = NodeState::new(world);
-        let source = ParentStreamSignal::new(source, node.node());
+        let source = ParentSignal::new(source, node.node());
         Self {
             source,
             store: BufferedStore::new(),

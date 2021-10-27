@@ -2,7 +2,7 @@ use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Folder<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> {
-    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>,
+    source: ParentSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>,
     store: SingleValueStore<V>,
     current_value: Option<V>,
     folder: F,
@@ -12,7 +12,7 @@ pub struct Folder<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> {
 impl<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> Folder<'a, T, V, F> {
     pub fn new(world: World, source: StreamSignal<'a, T>, initial: V, folder: F) -> Self {
         let node = NodeState::new(world);
-        let source = ParentStreamSignal::new(source, node.node());
+        let source = ParentSignal::new(source, node.node());
         Self {
             source,
             store: SingleValueStore::new(initial.cheap_clone()),

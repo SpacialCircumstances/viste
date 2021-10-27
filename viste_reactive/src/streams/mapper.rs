@@ -1,10 +1,9 @@
 use crate::graph::NodeIndex;
-use crate::readers::StreamReader;
 use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Mapper<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> {
-    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, T>,
     values: BufferedStore<R>,
     mapper: M,
     own_node: NodeState,
@@ -14,7 +13,7 @@ impl<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> Mapper<'a, T, R, M> {
     pub fn new(world: World, source: StreamSignal<'a, T>, mapper: M) -> Self {
         let own_node = NodeState::new(world);
         Mapper {
-            source: ParentStreamSignal::new(source, own_node.node()),
+            source: ParentSignal::new(source, own_node.node()),
             values: BufferedStore::new(),
             mapper,
             own_node,
