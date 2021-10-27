@@ -1,5 +1,5 @@
 use crate::graph::{Graph, NodeIndex, SearchContinuation};
-use crate::readers::{Reader, StreamReader};
+use crate::readers::{CachedReader, ChangeReader, Reader, StreamReader};
 use crate::streams::combine_mapper::CombineMapper;
 use crate::streams::counter::Counter;
 use crate::streams::from_iter::FromIter;
@@ -551,51 +551,6 @@ impl<'a, T: Data> Clone for ValueSignal<'a, T> {
     }
 }
 
-pub struct ParentValueSignal<
-    'a,
-    T: Data + 'a,
-    S,
-    R: Reader<Result = S, Signal = ValueSignal<'a, T>>,
-> {
-    parent: ValueSignal<'a, T>,
-    own_index: NodeIndex,
-    reader: R,
-}
-
-impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>>
-    ParentValueSignal<'a, T, S, R>
-{
-    pub fn new(signal: ValueSignal<'a, T>, own_index: NodeIndex) -> Self {
-        signal.add_dependency(own_index);
-        let reader = R::new(signal.clone());
-        Self {
-            parent: signal,
-            own_index,
-            reader,
-        }
-    }
-
-    pub fn set_parent(&mut self, signal: ValueSignal<'a, T>) {
-        self.parent.remove_dependency(self.own_index);
-        signal.add_dependency(self.own_index);
-        self.parent = signal.clone();
-        self.reader = R::new(signal);
-    }
-
-    pub fn compute(&mut self) -> S {
-        self.reader.read()
-    }
-}
-
-impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = ValueSignal<'a, T>>> Drop
-    for ParentValueSignal<'a, T, S, R>
-{
-    fn drop(&mut self) {
-        info!("Removing {} from parent", self.own_index);
-        self.parent.remove_dependency(self.own_index);
-    }
-}
-
 pub struct NodeState(World, NodeIndex);
 
 impl NodeState {
@@ -644,7 +599,7 @@ impl Drop for NodeState {
     }
 }
 
-fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
+pub fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
     let reader = signal.create_reader();
     let value = signal.compute(reader);
     signal.destroy_reader(reader);
@@ -694,6 +649,22 @@ impl<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>> Drop
 
 pub type ParentStreamSignal<'a, T> =
     ParentSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>;
+
+pub type ParentValueSignal<'a, T> = ParentSignal<
+    'a,
+    SingleComputationResult<T>,
+    ValueSignal<'a, T>,
+    SingleComputationResult<T>,
+    ChangeReader<'a, T>,
+>;
+
+pub type ParentCachedValueSignal<'a, T> = ParentSignal<
+    'a,
+    SingleComputationResult<T>,
+    ValueSignal<'a, T>,
+    (bool, T),
+    CachedReader<'a, T>,
+>;
 
 pub struct Collector<'a, T: Data + 'a> {
     reader: StreamReader<'a, T>,

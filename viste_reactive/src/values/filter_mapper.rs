@@ -1,9 +1,8 @@
-use crate::readers::ChangeReader;
 use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct FilterMapper<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 'a> {
-    source: ParentValueSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
+    source: ParentValueSignal<'a, T>,
     store: SingleValueStore<O>,
     fmap: F,
     node: NodeState,

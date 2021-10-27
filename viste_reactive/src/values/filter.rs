@@ -1,9 +1,8 @@
-use crate::readers::ChangeReader;
 use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
-    source: ParentValueSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
+    source: ParentValueSignal<'a, T>,
     current_value: SingleValueStore<T>,
     filter: F,
     node: NodeState,

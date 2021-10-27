@@ -1,9 +1,8 @@
-use crate::readers::ChangeReader;
 use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Changed<'a, T: Data + 'a> {
-    source: ParentValueSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
+    source: ParentValueSignal<'a, T>,
     store: BufferedStore<T>,
     node: NodeState,
 }
