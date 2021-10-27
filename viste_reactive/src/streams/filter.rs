@@ -3,7 +3,7 @@ use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
-    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>,
     store: BufferedStore<T>,
     filter: F,
     node: NodeState,

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub struct Many<'a, T: Data + 'a> {
     sources: HashMap<
         NodeIndex,
-        ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, StreamReader<'a, T>>,
+        ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>,
     >,
     values: BufferedStore<T>,
     node: NodeState,
