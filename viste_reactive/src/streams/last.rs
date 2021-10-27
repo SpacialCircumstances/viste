@@ -3,7 +3,7 @@ use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Last<'a, T: Data + 'a> {
-    source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, StreamReader<'a, T>>,
     value: SingleValueStore<T>,
     node: NodeState,
 }

@@ -4,7 +4,7 @@ use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Mapper<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> {
-    source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, StreamReader<'a, T>>,
     values: BufferedStore<R>,
     mapper: M,
     own_node: NodeState,

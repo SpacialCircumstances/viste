@@ -18,6 +18,7 @@ use slab::Slab;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
 use std::mem::replace;
 use std::rc::Rc;
 use tinyvec::TinyVec;
@@ -256,7 +257,7 @@ pub trait ComputationCore {
     fn node(&self) -> NodeIndex;
 }
 
-pub trait Signal<'a, S: 'a> {
+pub trait Signal<'a, S: 'a>: Clone {
     fn create<C: ComputationCore<ComputationResult = S> + 'a>(r: C) -> Self;
     fn world(&self) -> World;
     fn compute(&self, reader: ReaderToken) -> S;
@@ -650,42 +651,39 @@ fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
     value.unwrap_changed()
 }
 
-pub struct ParentStreamSignal<
-    'a,
-    T: Data + 'a,
-    S,
-    R: Reader<Result = S, Signal = StreamSignal<'a, T>>,
-> {
-    parent: StreamSignal<'a, T>,
+pub struct ParentStreamSignal<'a, T: 'a, S: Signal<'a, T>, R: Reader<Result = T, Signal = S>> {
+    parent: S,
     own_index: NodeIndex,
     reader: R,
+    pd: PhantomData<&'a R>,
 }
 
-impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = StreamSignal<'a, T>>>
+impl<'a, T: 'a, S: Signal<'a, T>, R: Reader<Result = T, Signal = S>>
     ParentStreamSignal<'a, T, S, R>
 {
-    pub fn new(signal: StreamSignal<'a, T>, own_index: NodeIndex) -> Self {
+    pub fn new(signal: S, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
         let reader = R::new(signal.clone());
         Self {
             parent: signal,
             own_index,
             reader,
+            pd: PhantomData::default(),
         }
     }
 
-    pub fn set_parent(&mut self, signal: StreamSignal<'a, T>) {
+    pub fn set_parent(&mut self, signal: S) {
         self.parent.remove_dependency(self.own_index);
         signal.add_dependency(self.own_index);
         self.parent = signal;
     }
 
-    pub fn compute(&mut self) -> S {
+    pub fn compute(&mut self) -> T {
         self.reader.read()
     }
 }
 
-impl<'a, T: Data + 'a, S, R: Reader<Result = S, Signal = StreamSignal<'a, T>>> Drop
+impl<'a, T: 'a, S: Signal<'a, T>, R: Reader<Result = T, Signal = S>> Drop
     for ParentStreamSignal<'a, T, S, R>
 {
     fn drop(&mut self) {

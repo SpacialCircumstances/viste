@@ -3,7 +3,7 @@ use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Cached<'a, T: Data + 'a> {
-    source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, Option<T>, StreamSignal<'a, T>, StreamReader<'a, T>>,
     last: Option<T>,
     store: BufferedStore<T>,
     node: NodeState,
