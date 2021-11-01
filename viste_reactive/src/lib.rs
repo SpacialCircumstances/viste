@@ -23,7 +23,7 @@ use std::mem::replace;
 use std::rc::Rc;
 use tinyvec::TinyVec;
 
-pub mod collections;
+//pub mod collections;
 pub mod graph;
 pub mod readers;
 pub mod stores;
@@ -257,30 +257,10 @@ pub trait ComputationCore {
     fn node(&self) -> NodeIndex;
 }
 
-pub trait Signal<'a, S: 'a>: Clone {
-    fn create<C: ComputationCore<ComputationResult = S> + 'a>(r: C) -> Self;
-    fn world(&self) -> World;
-    fn compute(&self, reader: ReaderToken) -> S;
-    fn add_dependency(&self, child: NodeIndex);
-    fn remove_dependency(&self, child: NodeIndex);
-    fn create_reader(&self) -> ReaderToken;
-    fn destroy_reader(&self, reader: ReaderToken);
-    fn is_dirty(&self) -> bool;
-    fn node(&self) -> NodeIndex;
-}
+pub struct Signal<'a, CR: 'a>(Rc<RefCell<dyn ComputationCore<ComputationResult = CR> + 'a>>);
 
-pub struct StreamSignal<'a, T: Data + 'a>(
-    Rc<RefCell<dyn ComputationCore<ComputationResult = Option<T>> + 'a>>,
-);
-
-impl<'a, T: Data + 'a> Clone for StreamSignal<'a, T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
-    fn create<S: ComputationCore<ComputationResult = Option<T>> + 'a>(r: S) -> Self {
+impl<'a, CR: 'a> Signal<'a, CR> {
+    fn create<S: ComputationCore<ComputationResult = CR> + 'a>(r: S) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
 
@@ -288,7 +268,7 @@ impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
         self.0.borrow().world().clone()
     }
 
-    fn compute(&self, reader: ReaderToken) -> Option<T> {
+    fn compute(&self, reader: ReaderToken) -> CR {
         self.0.borrow_mut().compute(reader)
     }
 
@@ -317,13 +297,21 @@ impl<'a, T: Data + 'a> Signal<'a, Option<T>> for StreamSignal<'a, T> {
     }
 }
 
-impl<'a, T: Data> PartialEq for StreamSignal<'a, T> {
+impl<'a, T> Clone for Signal<'a, T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<'a, T: Data> PartialEq for Signal<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }
 }
 
-impl<'a, T: Data> Eq for StreamSignal<'a, T> {}
+impl<'a, T: Data> Eq for Signal<'a, T> {}
+
+type StreamSignal<'a, T> = Signal<'a, Option<T>>;
 
 impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> StreamSignal<'a, R> {
@@ -378,53 +366,11 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     }
 }
 
-pub struct ValueSignal<'a, T: Data>(
-    Rc<RefCell<dyn ComputationCore<ComputationResult = SingleComputationResult<T>> + 'a>>,
-);
+pub type ValueSignal<'a, T> = Signal<'a, SingleComputationResult<T>>;
 
 impl<'a, T: Data> PartialEq for ValueSignal<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl<'a, T: Data + 'a> Signal<'a, SingleComputationResult<T>> for ValueSignal<'a, T> {
-    fn create<S: ComputationCore<ComputationResult = SingleComputationResult<T>> + 'a>(
-        r: S,
-    ) -> Self {
-        Self(Rc::new(RefCell::new(r)))
-    }
-
-    fn world(&self) -> World {
-        self.0.borrow().world().clone()
-    }
-
-    fn compute(&self, reader: ReaderToken) -> SingleComputationResult<T> {
-        self.0.borrow_mut().compute(reader)
-    }
-
-    fn add_dependency(&self, child: NodeIndex) {
-        self.0.borrow_mut().add_dependency(child)
-    }
-
-    fn remove_dependency(&self, child: NodeIndex) {
-        self.0.borrow_mut().remove_dependency(child)
-    }
-
-    fn create_reader(&self) -> ReaderToken {
-        self.0.borrow_mut().create_reader()
-    }
-
-    fn destroy_reader(&self, reader: ReaderToken) {
-        self.0.borrow_mut().destroy_reader(reader)
-    }
-
-    fn is_dirty(&self) -> bool {
-        self.0.borrow().is_dirty()
-    }
-
-    fn node(&self) -> NodeIndex {
-        self.0.borrow().node()
     }
 }
 
@@ -473,7 +419,7 @@ pub fn portal<'a, T: Data + 'a>(world: &World) -> (impl Fn(T), StreamSignal<'a, 
     let signal = Rc::new(RefCell::new(p));
     let s = signal.clone();
     let pusher = move |v| s.borrow_mut().send(v);
-    (pusher, StreamSignal(signal))
+    (pusher, Signal(signal))
 }
 
 pub fn many<'a, T: Data + 'a>(
@@ -495,7 +441,7 @@ pub fn mutable<'a, T: Data + 'a>(world: &World, initial: T) -> (impl Fn(T), Valu
     let signal = Rc::new(RefCell::new(m));
     let s = signal.clone();
     let mutator = move |v| s.borrow_mut().set(v);
-    (mutator, ValueSignal(signal))
+    (mutator, Signal(signal))
 }
 
 pub fn constant<'a, T: Data + 'a>(world: &World, value: T) -> ValueSignal<'a, T> {
@@ -543,12 +489,6 @@ pub fn combine_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2)
         s2.clone(),
         mapper,
     ))
-}
-
-impl<'a, T: Data> Clone for ValueSignal<'a, T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
 }
 
 pub struct NodeState(World, NodeIndex);
@@ -606,17 +546,15 @@ pub fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
     value.unwrap_changed()
 }
 
-pub struct ParentSignal<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>> {
-    parent: S,
+pub struct ParentSignal<'a, T: 'a, Res, R: Reader<'a, T, Result = Res>> {
+    parent: Signal<'a, T>,
     own_index: NodeIndex,
     reader: R,
     pd: PhantomData<&'a T>,
 }
 
-impl<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>>
-    ParentSignal<'a, T, S, Res, R>
-{
-    pub fn new(signal: S, own_index: NodeIndex) -> Self {
+impl<'a, T: 'a, Res, R: Reader<'a, T, Result = Res>> ParentSignal<'a, T, Res, R> {
+    pub fn new(signal: Signal<'a, T>, own_index: NodeIndex) -> Self {
         signal.add_dependency(own_index);
         let reader = R::new(signal.clone());
         Self {
@@ -627,7 +565,7 @@ impl<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>>
         }
     }
 
-    pub fn set_parent(&mut self, signal: S) {
+    pub fn set_parent(&mut self, signal: Signal<'a, T>) {
         self.parent.remove_dependency(self.own_index);
         signal.add_dependency(self.own_index);
         self.parent = signal;
@@ -638,33 +576,20 @@ impl<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>>
     }
 }
 
-impl<'a, T: 'a, S: Signal<'a, T>, Res, R: Reader<Result = Res, Signal = S>> Drop
-    for ParentSignal<'a, T, S, Res, R>
-{
+impl<'a, T: 'a, Res, R: Reader<'a, T, Result = Res>> Drop for ParentSignal<'a, T, Res, R> {
     fn drop(&mut self) {
         info!("Removing {} from parent", self.own_index);
         self.parent.remove_dependency(self.own_index);
     }
 }
 
-pub type ParentStreamSignal<'a, T> =
-    ParentSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>;
+pub type ParentStreamSignal<'a, T> = ParentSignal<'a, Option<T>, Option<T>, StreamReader<'a, T>>;
 
-pub type ParentValueSignal<'a, T> = ParentSignal<
-    'a,
-    SingleComputationResult<T>,
-    ValueSignal<'a, T>,
-    SingleComputationResult<T>,
-    ChangeReader<'a, T>,
->;
+pub type ParentValueSignal<'a, T> =
+    ParentSignal<'a, SingleComputationResult<T>, SingleComputationResult<T>, ChangeReader<'a, T>>;
 
-pub type ParentCachedValueSignal<'a, T> = ParentSignal<
-    'a,
-    SingleComputationResult<T>,
-    ValueSignal<'a, T>,
-    (bool, T),
-    CachedReader<'a, T>,
->;
+pub type ParentCachedValueSignal<'a, T> =
+    ParentSignal<'a, SingleComputationResult<T>, (bool, T), CachedReader<'a, T>>;
 
 pub struct Collector<'a, T: Data + 'a> {
     reader: StreamReader<'a, T>,

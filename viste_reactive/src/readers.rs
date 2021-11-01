@@ -1,17 +1,15 @@
 use crate::*;
 
-pub trait Reader {
+pub trait Reader<'a, CR> {
     type Result;
-    type Signal;
-    fn new(signal: Self::Signal) -> Self;
+    fn new(signal: Signal<'a, CR>) -> Self;
     fn read(&mut self) -> Self::Result;
 }
 
 pub struct ChangeReader<'a, T: Data + 'a>(ValueSignal<'a, T>, ReaderToken);
 
-impl<'a, T: Data + 'a> Reader for ChangeReader<'a, T> {
+impl<'a, T: Data + 'a> Reader<'a, SingleComputationResult<T>> for ChangeReader<'a, T> {
     type Result = SingleComputationResult<T>;
-    type Signal = ValueSignal<'a, T>;
 
     fn new(signal: ValueSignal<'a, T>) -> Self {
         let reader = signal.create_reader();
@@ -35,9 +33,8 @@ pub struct CachedReader<'a, T: Data + 'a> {
     cache: T,
 }
 
-impl<'a, T: Data + 'a> Reader for CachedReader<'a, T> {
+impl<'a, T: Data + 'a> Reader<'a, SingleComputationResult<T>> for CachedReader<'a, T> {
     type Result = (bool, T);
-    type Signal = ValueSignal<'a, T>;
 
     fn new(signal: ValueSignal<'a, T>) -> Self {
         let token = signal.create_reader();
@@ -81,11 +78,10 @@ impl<'a, T: Data + 'a> Iterator for StreamReaderIter<'a, T> {
     }
 }
 
-impl<'a, T: Data + 'a> Reader for StreamReader<'a, T> {
+impl<'a, T: Data + 'a> Reader<'a, Option<T>> for StreamReader<'a, T> {
     type Result = Option<T>;
-    type Signal = StreamSignal<'a, T>;
 
-    fn new(signal: Self::Signal) -> Self {
+    fn new(signal: Signal<'a, Self::Result>) -> Self {
         let token = signal.create_reader();
         Self { signal, token }
     }

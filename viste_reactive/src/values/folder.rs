@@ -2,7 +2,7 @@ use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Folder<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> {
-    source: ParentSignal<'a, Option<T>, StreamSignal<'a, T>, Option<T>, StreamReader<'a, T>>,
+    source: ParentSignal<'a, Option<T>, Option<T>, StreamReader<'a, T>>,
     store: SingleValueStore<V>,
     current_value: Option<V>,
     folder: F,
