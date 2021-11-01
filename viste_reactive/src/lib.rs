@@ -568,7 +568,8 @@ impl<'a, T: 'a, Res, R: Reader<'a, T, Result = Res>> ParentSignal<'a, T, Res, R>
     pub fn set_parent(&mut self, signal: Signal<'a, T>) {
         self.parent.remove_dependency(self.own_index);
         signal.add_dependency(self.own_index);
-        self.parent = signal;
+        self.parent = signal.clone();
+        self.reader = R::new(signal);
     }
 
     pub fn compute(&mut self) -> Res {
