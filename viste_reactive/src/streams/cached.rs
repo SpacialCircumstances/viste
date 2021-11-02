@@ -11,7 +11,7 @@ pub struct Cached<'a, T: Data + 'a> {
 impl<'a, T: Data + 'a> Cached<'a, T> {
     pub fn new(world: World, source: StreamSignal<'a, T>) -> Self {
         let node = NodeState::new(world);
-        let source = ParentSignal::new(source, node.node());
+        let source = ParentSignal::new(source.0, node.node());
         Self {
             source,
             last: None,

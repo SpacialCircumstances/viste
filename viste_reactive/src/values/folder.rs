@@ -12,7 +12,7 @@ pub struct Folder<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> {
 impl<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> Folder<'a, T, V, F> {
     pub fn new(world: World, source: StreamSignal<'a, T>, initial: V, folder: F) -> Self {
         let node = NodeState::new(world);
-        let source = ParentSignal::new(source, node.node());
+        let source = ParentSignal::new(source.0, node.node());
         Self {
             source,
             store: SingleValueStore::new(initial.cheap_clone()),

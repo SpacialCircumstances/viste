@@ -134,38 +134,38 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> ComputationCore
     fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult {
         self.initial_items
             .get_next(reader)
-            .or_else(|| self.stream_signal.compute(reader))
+            .or_else(|| self.stream_signal.signal().compute(reader))
     }
 
     fn create_reader(&mut self) -> ReaderToken {
-        let r = self.stream_signal.create_reader();
+        let r = self.stream_signal.signal().create_reader();
         self.initial_items.insert(r, self.view.to_queue());
         r
     }
 
     fn destroy_reader(&mut self, reader: ReaderToken) {
         self.initial_items.remove(reader);
-        self.stream_signal.destroy_reader(reader)
+        self.stream_signal.signal().destroy_reader(reader)
     }
 
     fn add_dependency(&mut self, child: NodeIndex) {
-        self.stream_signal.add_dependency(child)
+        self.stream_signal.signal().add_dependency(child)
     }
 
     fn remove_dependency(&mut self, child: NodeIndex) {
-        self.stream_signal.remove_dependency(child)
+        self.stream_signal.signal().remove_dependency(child)
     }
 
     fn is_dirty(&self) -> bool {
-        self.stream_signal.is_dirty()
+        self.stream_signal.signal().is_dirty()
     }
 
     fn world(&self) -> World {
-        self.stream_signal.world()
+        self.stream_signal.signal().world()
     }
 
     fn node(&self) -> NodeIndex {
-        self.stream_signal.node()
+        self.stream_signal.signal().node()
     }
 }
 

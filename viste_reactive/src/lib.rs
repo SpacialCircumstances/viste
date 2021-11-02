@@ -260,39 +260,39 @@ pub trait ComputationCore {
 pub struct Signal<'a, CR: 'a>(Rc<RefCell<dyn ComputationCore<ComputationResult = CR> + 'a>>);
 
 impl<'a, CR: 'a> Signal<'a, CR> {
-    fn create<S: ComputationCore<ComputationResult = CR> + 'a>(r: S) -> Self {
+    pub fn create<S: ComputationCore<ComputationResult = CR> + 'a>(r: S) -> Self {
         Self(Rc::new(RefCell::new(r)))
     }
 
-    fn world(&self) -> World {
+    pub fn world(&self) -> World {
         self.0.borrow().world()
     }
 
-    fn compute(&self, reader: ReaderToken) -> CR {
+    pub fn compute(&self, reader: ReaderToken) -> CR {
         self.0.borrow_mut().compute(reader)
     }
 
-    fn add_dependency(&self, child: NodeIndex) {
+    pub fn add_dependency(&self, child: NodeIndex) {
         self.0.borrow_mut().add_dependency(child)
     }
 
-    fn remove_dependency(&self, child: NodeIndex) {
+    pub fn remove_dependency(&self, child: NodeIndex) {
         self.0.borrow_mut().remove_dependency(child)
     }
 
-    fn create_reader(&self) -> ReaderToken {
+    pub fn create_reader(&self) -> ReaderToken {
         self.0.borrow_mut().create_reader()
     }
 
-    fn destroy_reader(&self, reader: ReaderToken) {
+    pub fn destroy_reader(&self, reader: ReaderToken) {
         self.0.borrow_mut().destroy_reader(reader)
     }
 
-    fn is_dirty(&self) -> bool {
+    pub fn is_dirty(&self) -> bool {
         self.0.borrow().is_dirty()
     }
 
-    fn node(&self) -> NodeIndex {
+    pub fn node(&self) -> NodeIndex {
         self.0.borrow().node()
     }
 }
@@ -303,47 +303,76 @@ impl<'a, T> Clone for Signal<'a, T> {
     }
 }
 
-impl<'a, T: Data> PartialEq for Signal<'a, T> {
+impl<'a, T> PartialEq for Signal<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }
 }
 
-impl<'a, T: Data> Eq for Signal<'a, T> {}
+impl<'a, T> Eq for Signal<'a, T> {}
 
-type StreamSignal<'a, T> = Signal<'a, Option<T>>;
+pub struct StreamSignal<'a, T: Data + 'a>(pub Signal<'a, Option<T>>);
+
+impl<'a, T: Data + 'a> Clone for StreamSignal<'a, T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<'a, T: Data + 'a> PartialEq for StreamSignal<'a, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<'a, T: Data + 'a> StreamSignal<'a, T> {
+    pub fn new(signal: Signal<'a, Option<T>>) -> Self {
+        StreamSignal(signal)
+    }
+
+    pub fn create<S: ComputationCore<ComputationResult = Option<T>> + 'a>(r: S) -> Self {
+        Self(Signal::create(r))
+    }
+
+    pub fn signal(&self) -> &Signal<'a, Option<T>> {
+        &self.0
+    }
+}
 
 impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> StreamSignal<'a, R> {
-        StreamSignal::create(streams::mapper::Mapper::new(
-            self.world(),
+        StreamSignal::new(Signal::create(streams::mapper::Mapper::new(
+            self.signal().world(),
             self.clone(),
             mapper,
-        ))
+        )))
     }
 
     pub fn count(&self) -> ValueSignal<'a, u64> {
-        ValueSignal::create(Counter::new(self.world(), self.clone()))
+        ValueSignal::create(Counter::new(self.signal().world(), self.clone()))
     }
 
     pub fn last(&self, initial: T) -> ValueSignal<'a, T> {
-        ValueSignal::create(Last::new(self.world(), self.clone(), initial))
+        ValueSignal::create(Last::new(self.signal().world(), self.clone(), initial))
     }
 
     pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F) -> StreamSignal<'a, T> {
-        StreamSignal::create(streams::filter::Filter::new(
-            self.world(),
+        StreamSignal::new(Signal::create(streams::filter::Filter::new(
+            self.signal().world(),
             self.clone(),
             filter,
-        ))
+        )))
     }
 
     pub fn cached(&self) -> StreamSignal<'a, T> {
-        StreamSignal::create(streams::cached::Cached::new(self.world(), self.clone()))
+        StreamSignal::new(Signal::create(streams::cached::Cached::new(
+            self.signal().world(),
+            self.clone(),
+        )))
     }
 
     pub fn collect(&self) -> Collector<'a, T> {
-        Collector::new(StreamReader::new(self.clone()))
+        Collector::new(StreamReader::new(self.clone().0))
     }
 
     pub fn filter_map<O: Data + 'a, F: Fn(T) -> Option<O> + 'a>(
@@ -351,7 +380,7 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
         fmap: F,
     ) -> StreamSignal<'a, O> {
         StreamSignal::create(streams::filter_mapper::FilterMapper::new(
-            self.world(),
+            self.signal().world(),
             self.clone(),
             fmap,
         ))
@@ -362,17 +391,16 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
         folder: F,
         initial: V,
     ) -> ValueSignal<'a, V> {
-        ValueSignal::create(Folder::new(self.world(), self.clone(), initial, folder))
+        ValueSignal::create(Folder::new(
+            self.signal().world(),
+            self.clone(),
+            initial,
+            folder,
+        ))
     }
 }
 
 pub type ValueSignal<'a, T> = Signal<'a, SingleComputationResult<T>>;
-
-impl<'a, T: Data> PartialEq for ValueSignal<'a, T> {
-    fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-}
 
 impl<'a, T: Data + 'a> ValueSignal<'a, T> {
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> ValueSignal<'a, R> {
@@ -419,7 +447,7 @@ pub fn portal<'a, T: Data + 'a>(world: &World) -> (impl Fn(T), StreamSignal<'a, 
     let signal = Rc::new(RefCell::new(p));
     let s = signal.clone();
     let pusher = move |v| s.borrow_mut().send(v);
-    (pusher, Signal(signal))
+    (pusher, StreamSignal(Signal(signal)))
 }
 
 pub fn many<'a, T: Data + 'a>(
@@ -475,7 +503,12 @@ pub fn zip_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> 
     s2: &StreamSignal<'a, I2>,
     mapper: M,
 ) -> StreamSignal<'a, O> {
-    StreamSignal::create(ZipMapper::new(s1.world(), s1.clone(), s2.clone(), mapper))
+    StreamSignal::create(ZipMapper::new(
+        s1.signal().world(),
+        s1.clone(),
+        s2.clone(),
+        mapper,
+    ))
 }
 
 pub fn combine_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>(
@@ -484,7 +517,7 @@ pub fn combine_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2)
     mapper: M,
 ) -> StreamSignal<'a, O> {
     StreamSignal::create(CombineMapper::new(
-        s1.world(),
+        s1.signal().world(),
         s1.clone(),
         s2.clone(),
         mapper,

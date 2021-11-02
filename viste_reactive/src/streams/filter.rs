@@ -11,7 +11,7 @@ pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
 impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
     pub fn new(world: World, source: StreamSignal<'a, T>, filter: F) -> Self {
         let node = NodeState::new(world);
-        let source = ParentSignal::new(source, node.node());
+        let source = ParentSignal::new(source.0, node.node());
         Self {
             source,
             store: BufferedStore::new(),

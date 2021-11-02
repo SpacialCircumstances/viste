@@ -11,7 +11,7 @@ impl<'a, T: Data + 'a> Last<'a, T> {
     pub fn new(world: World, source: StreamSignal<'a, T>, initial: T) -> Self {
         let node = NodeState::new(world);
         Self {
-            source: ParentSignal::new(source, node.node()),
+            source: ParentSignal::new(source.0, node.node()),
             value: SingleValueStore::new(initial),
             node,
         }

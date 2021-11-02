@@ -83,11 +83,14 @@ impl<'a, T: Data + 'a> Reader<'a, Option<T>> for StreamReader<'a, T> {
 
     fn new(signal: Signal<'a, Self::Result>) -> Self {
         let token = signal.create_reader();
-        Self { signal, token }
+        Self {
+            signal: StreamSignal::new(signal),
+            token,
+        }
     }
 
     fn read(&mut self) -> Self::Result {
-        self.signal.compute(self.token)
+        self.signal.signal().compute(self.token)
     }
 }
 
@@ -102,6 +105,6 @@ impl<'a, T: Data + 'a> IntoIterator for StreamReader<'a, T> {
 
 impl<'a, T: Data + 'a> Drop for StreamReader<'a, T> {
     fn drop(&mut self) {
-        self.signal.destroy_reader(self.token)
+        self.signal.signal().destroy_reader(self.token)
     }
 }

@@ -13,7 +13,12 @@ impl<'a, T: Data + 'a> Many<'a, T> {
         let node = NodeState::new(world);
         let sources = sources
             .into_iter()
-            .map(|signal| (signal.node(), ParentSignal::new(signal, node.node())))
+            .map(|signal| {
+                (
+                    signal.signal().node(),
+                    ParentSignal::new(signal.0, node.node()),
+                )
+            })
             .collect();
         Many {
             node,
