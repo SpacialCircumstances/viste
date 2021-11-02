@@ -23,7 +23,7 @@ use std::mem::replace;
 use std::rc::Rc;
 use tinyvec::TinyVec;
 
-//pub mod collections;
+pub mod collections;
 pub mod graph;
 pub mod readers;
 pub mod stores;
@@ -253,7 +253,7 @@ pub trait ComputationCore {
     fn add_dependency(&mut self, child: NodeIndex);
     fn remove_dependency(&mut self, child: NodeIndex);
     fn is_dirty(&self) -> bool;
-    fn world(&self) -> &World;
+    fn world(&self) -> World;
     fn node(&self) -> NodeIndex;
 }
 
@@ -265,7 +265,7 @@ impl<'a, CR: 'a> Signal<'a, CR> {
     }
 
     fn world(&self) -> World {
-        self.0.borrow().world().clone()
+        self.0.borrow().world()
     }
 
     fn compute(&self, reader: ReaderToken) -> CR {

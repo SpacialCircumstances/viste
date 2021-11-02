@@ -57,8 +57,8 @@ impl<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 'a> ComputationCore
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

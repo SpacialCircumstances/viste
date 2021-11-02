@@ -54,8 +54,8 @@ impl<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> ComputationCore for Map
         self.own_node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.own_node.world()
+    fn world(&self) -> World {
+        self.own_node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

@@ -56,8 +56,8 @@ impl<'a, T: Data, F: Fn(&T) -> bool + 'a> ComputationCore for Filter<'a, T, F> {
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

@@ -74,8 +74,8 @@ impl<'a, T: Data + 'a, V: Data + 'a, F: Fn(V, T) -> V + 'a> ComputationCore
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {
