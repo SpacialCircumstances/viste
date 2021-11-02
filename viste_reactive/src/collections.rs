@@ -695,6 +695,7 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> View<'a, T> for OrderedVecView<'
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use crate::collections::*;
@@ -862,4 +863,4 @@ mod tests {
         assert_eq!(view1.data(), &vec![0, 1, 3]);
         assert_eq!(view2.data(), &vec![0, 1, 3]);
     }
-}
+}*/

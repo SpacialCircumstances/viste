@@ -11,19 +11,19 @@ pub struct ChangeReader<'a, T: Data + 'a>(ValueSignal<'a, T>, ReaderToken);
 impl<'a, T: Data + 'a> Reader<'a, SingleComputationResult<T>> for ChangeReader<'a, T> {
     type Result = SingleComputationResult<T>;
 
-    fn new(signal: ValueSignal<'a, T>) -> Self {
+    fn new(signal: Signal<'a, SingleComputationResult<T>>) -> Self {
         let reader = signal.create_reader();
-        Self(signal, reader)
+        Self(ValueSignal::new(signal), reader)
     }
 
     fn read(&mut self) -> Self::Result {
-        self.0.compute(self.1)
+        self.0.signal().compute(self.1)
     }
 }
 
 impl<'a, T: Data + 'a> Drop for ChangeReader<'a, T> {
     fn drop(&mut self) {
-        self.0.destroy_reader(self.1)
+        self.0.signal().destroy_reader(self.1)
     }
 }
 
@@ -36,18 +36,18 @@ pub struct CachedReader<'a, T: Data + 'a> {
 impl<'a, T: Data + 'a> Reader<'a, SingleComputationResult<T>> for CachedReader<'a, T> {
     type Result = (bool, T);
 
-    fn new(signal: ValueSignal<'a, T>) -> Self {
+    fn new(signal: Signal<'a, SingleComputationResult<T>>) -> Self {
         let token = signal.create_reader();
         let initial_value = signal.compute(token).unwrap_changed();
         Self {
-            signal,
+            signal: ValueSignal::new(signal),
             token,
             cache: initial_value,
         }
     }
 
     fn read(&mut self) -> (bool, T) {
-        match self.signal.compute(self.token) {
+        match self.signal.signal().compute(self.token) {
             SingleComputationResult::Changed(new_v) => {
                 self.cache = new_v;
                 (true, self.cache.cheap_clone())
@@ -59,7 +59,7 @@ impl<'a, T: Data + 'a> Reader<'a, SingleComputationResult<T>> for CachedReader<'
 
 impl<'a, T: Data + 'a> Drop for CachedReader<'a, T> {
     fn drop(&mut self) {
-        self.signal.destroy_reader(self.token)
+        self.signal.signal().destroy_reader(self.token)
     }
 }
 

@@ -11,7 +11,7 @@ impl<'a, T: Data + 'a> Changed<'a, T> {
     pub fn new(world: World, source: ValueSignal<'a, T>) -> Self {
         let node = NodeState::new(world);
         Self {
-            source: ParentValueSignal::new(source, node.node()),
+            source: ParentValueSignal::new(source.0, node.node()),
             store: BufferedStore::new(),
             node,
         }

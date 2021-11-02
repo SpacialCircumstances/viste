@@ -12,7 +12,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
     pub fn new(world: World, source: ValueSignal<'a, I>, mapper: M) -> Self {
         let node = NodeState::new(world);
         info!("Mapper signal created: {}", node.node());
-        let mut source: ParentValueSignal<I> = ParentValueSignal::new(source, node.node());
+        let mut source: ParentValueSignal<I> = ParentValueSignal::new(source.0, node.node());
         let current_value = SingleValueStore::new(mapper(source.compute().unwrap_changed()));
         Mapper {
             source,
@@ -83,9 +83,9 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> Mapper2<'a, I1, I
         let node = NodeState::new(world);
         info!("Mapper2 signal created: {}", node.node());
         let mut source1: ParentCachedValueSignal<'a, I1> =
-            ParentCachedValueSignal::new(source1, node.node());
+            ParentCachedValueSignal::new(source1.0, node.node());
         let mut source2: ParentCachedValueSignal<'a, I2> =
-            ParentCachedValueSignal::new(source2, node.node());
+            ParentCachedValueSignal::new(source2.0, node.node());
         let initial_value = mapper(source1.compute().1, source2.compute().1);
         Self {
             mapper,

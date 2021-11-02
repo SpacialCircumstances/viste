@@ -13,9 +13,9 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Binder
     pub fn new(world: World, parent: ValueSignal<'a, I>, binder: B) -> Self {
         let node = NodeState::new(world);
         info!("Binder signal created: {}", node.node());
-        let mut parent: ParentValueSignal<I> = ParentValueSignal::new(parent, node.node());
+        let mut parent: ParentValueSignal<I> = ParentValueSignal::new(parent.0, node.node());
         let mut initial_signal: ParentValueSignal<O> =
-            ParentValueSignal::new(binder(parent.compute().unwrap_changed()), node.node());
+            ParentValueSignal::new(binder(parent.compute().unwrap_changed()).0, node.node());
         let current_value = SingleValueStore::new(initial_signal.compute().unwrap_changed());
         Binder {
             binder,
@@ -36,7 +36,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Comput
         if self.node.is_dirty() {
             self.node.clean();
             if let SingleComputationResult::Changed(new_source) = self.parent.compute() {
-                self.current_signal.set_parent((self.binder)(new_source));
+                let new_signal = (self.binder)(new_source);
+                self.current_signal.set_parent(new_signal.0);
             }
             if let SingleComputationResult::Changed(new_value) = self.current_signal.compute() {
                 self.current_value.set_value(new_value)
@@ -101,11 +102,11 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, B: Fn(I1, I2) -> ValueSigna
         let node = NodeState::new(world);
         info!("Binder2 signal created: {}", node.node());
         let mut parent1: ParentCachedValueSignal<I1> =
-            ParentCachedValueSignal::new(parent1, node.node());
+            ParentCachedValueSignal::new(parent1.0, node.node());
         let mut parent2: ParentCachedValueSignal<I2> =
-            ParentCachedValueSignal::new(parent2, node.node());
+            ParentCachedValueSignal::new(parent2.0, node.node());
         let mut initial_signal: ParentValueSignal<O> = ParentValueSignal::new(
-            binder(parent1.compute().1, parent2.compute().1),
+            binder(parent1.compute().1, parent2.compute().1).0,
             node.node(),
         );
         let current_value = SingleValueStore::new(initial_signal.compute().unwrap_changed());
@@ -131,7 +132,8 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, B: Fn(I1, I2) -> ValueSigna
             let (changed1, s1) = self.parent1.compute();
             let (changed2, s2) = self.parent2.compute();
             if changed1 || changed2 {
-                self.current_signal.set_parent((self.binder)(s1, s2));
+                let new_signal = (self.binder)(s1, s2);
+                self.current_signal.set_parent(new_signal.0);
             }
             if let SingleComputationResult::Changed(new_value) = self.current_signal.compute() {
                 self.current_value.set_value(new_value)

@@ -325,6 +325,8 @@ impl<'a, T: Data + 'a> PartialEq for StreamSignal<'a, T> {
     }
 }
 
+impl<'a, T: Data + 'a> Eq for StreamSignal<'a, T> {}
+
 impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn new(signal: Signal<'a, Option<T>>) -> Self {
         StreamSignal(signal)
@@ -400,26 +402,62 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     }
 }
 
-pub type ValueSignal<'a, T> = Signal<'a, SingleComputationResult<T>>;
+pub struct ValueSignal<'a, T: Data + 'a>(pub Signal<'a, SingleComputationResult<T>>);
+
+impl<'a, T: Data + 'a> Clone for ValueSignal<'a, T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<'a, T: Data + 'a> PartialEq for ValueSignal<'a, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<'a, T: Data + 'a> Eq for ValueSignal<'a, T> {}
 
 impl<'a, T: Data + 'a> ValueSignal<'a, T> {
+    pub fn new(signal: Signal<'a, SingleComputationResult<T>>) -> Self {
+        Self(signal)
+    }
+
+    pub fn create<S: ComputationCore<ComputationResult = SingleComputationResult<T>> + 'a>(
+        r: S,
+    ) -> Self {
+        Self(Signal::create(r))
+    }
+
+    pub fn signal(&self) -> &Signal<'a, SingleComputationResult<T>> {
+        &self.0
+    }
+
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> ValueSignal<'a, R> {
-        ValueSignal::create(Mapper::new(self.world(), self.clone(), mapper))
+        ValueSignal::create(Mapper::new(self.signal().world(), self.clone(), mapper))
     }
 
     pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F, initial: T) -> ValueSignal<'a, T> {
-        ValueSignal::create(Filter::new(self.world(), self.clone(), initial, filter))
+        ValueSignal::create(Filter::new(
+            self.signal().world(),
+            self.clone(),
+            initial,
+            filter,
+        ))
     }
 
     pub fn bind<O: Data + 'a, B: Fn(T) -> ValueSignal<'a, O> + 'a>(
         &self,
         binder: B,
     ) -> ValueSignal<'a, O> {
-        ValueSignal::create(Binder::new(self.world(), self.clone(), binder))
+        ValueSignal::create(Binder::new(self.signal().world(), self.clone(), binder))
     }
 
     pub fn changed(&self) -> StreamSignal<'a, T> {
-        StreamSignal::create(streams::changed::Changed::new(self.world(), self.clone()))
+        StreamSignal::create(streams::changed::Changed::new(
+            self.signal().world(),
+            self.clone(),
+        ))
     }
 
     pub fn filter_map<O: Data + 'a, F: Fn(T) -> Option<O> + 'a>(
@@ -428,7 +466,7 @@ impl<'a, T: Data + 'a> ValueSignal<'a, T> {
         initial: O,
     ) -> ValueSignal<'a, O> {
         ValueSignal::create(values::filter_mapper::FilterMapper::new(
-            self.world(),
+            self.signal().world(),
             self.clone(),
             initial,
             fmap,
@@ -469,7 +507,7 @@ pub fn mutable<'a, T: Data + 'a>(world: &World, initial: T) -> (impl Fn(T), Valu
     let signal = Rc::new(RefCell::new(m));
     let s = signal.clone();
     let mutator = move |v| s.borrow_mut().set(v);
-    (mutator, Signal(signal))
+    (mutator, ValueSignal::new(Signal(signal)))
 }
 
 pub fn constant<'a, T: Data + 'a>(world: &World, value: T) -> ValueSignal<'a, T> {
@@ -481,7 +519,12 @@ pub fn map2<'a, T1: Data + 'a, T2: Data + 'a, O: Data + 'a, M: Fn(T1, T2) -> O +
     s2: &ValueSignal<'a, T2>,
     mapper: M,
 ) -> ValueSignal<'a, O> {
-    ValueSignal::create(Mapper2::new(s1.world(), s1.clone(), s2.clone(), mapper))
+    ValueSignal::create(Mapper2::new(
+        s1.signal().world(),
+        s1.clone(),
+        s2.clone(),
+        mapper,
+    ))
 }
 
 pub fn bind2<
@@ -495,7 +538,12 @@ pub fn bind2<
     s2: &ValueSignal<'a, I2>,
     binder: B,
 ) -> ValueSignal<'a, O> {
-    ValueSignal::create(Binder2::new(s1.world(), s1.clone(), s2.clone(), binder))
+    ValueSignal::create(Binder2::new(
+        s1.signal().world(),
+        s1.clone(),
+        s2.clone(),
+        binder,
+    ))
 }
 
 pub fn zip_map<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>(
@@ -573,6 +621,7 @@ impl Drop for NodeState {
 }
 
 pub fn read_once<'a, T: Data + 'a>(signal: &ValueSignal<'a, T>) -> T {
+    let signal = signal.signal();
     let reader = signal.create_reader();
     let value = signal.compute(reader);
     signal.destroy_reader(reader);
