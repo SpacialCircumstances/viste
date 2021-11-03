@@ -702,7 +702,6 @@ impl<'a, T: Data + 'a, K: Copy + Eq + Ord + 'a> View<'a, T> for OrderedVecView<'
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use crate::collections::*;
@@ -710,7 +709,7 @@ mod tests {
     #[test]
     fn test_hashset_view() {
         let world = World::new();
-        let mut setp: CollectionPortal<i32, VecView<i32>> = CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new::<VecView<i32>>(&world);
         let mut view = setp.signal().view_set_hash();
         assert!(view.data_unchanged().is_empty());
         setp.add(2);
@@ -728,7 +727,7 @@ mod tests {
     #[test]
     fn test_btreeset_view() {
         let world = World::new();
-        let mut setp: CollectionPortal<i32, VecView<i32>> = CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new::<VecView<i32>>(&world);
         let mut view = setp.signal().view_set_btree();
         assert!(view.data_unchanged().is_empty());
         setp.add(2);
@@ -746,8 +745,8 @@ mod tests {
     #[test]
     fn test_hashmap_view() {
         let world = World::new();
-        let mut setp: CollectionPortal<(i32, i32), VecView<(i32, i32)>> =
-            CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<(i32, i32)> =
+            CollectionPortal::new::<VecView<(i32, i32)>>(&world);
         let mut view = setp.signal().view_map_hash(|(a, _)| *a, |(_, b)| b);
         assert!(view.data().is_empty());
         setp.add((2, 3));
@@ -765,8 +764,8 @@ mod tests {
     #[test]
     fn test_btreemap_view() {
         let world = World::new();
-        let mut setp: CollectionPortal<(i32, i32), VecView<(i32, i32)>> =
-            CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<(i32, i32)> =
+            CollectionPortal::new::<VecView<(i32, i32)>>(&world);
         let mut view = setp.signal().view_map_btree(|(a, _)| *a, |(_, b)| b);
         assert!(view.data().is_empty());
         setp.add((2, 3));
@@ -784,8 +783,8 @@ mod tests {
     #[test]
     fn test_vec_indexed() {
         let world = World::new();
-        let mut setp: CollectionPortal<(i32, i32), VecView<(i32, i32)>> =
-            CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<(i32, i32)> =
+            CollectionPortal::new::<VecView<(i32, i32)>>(&world);
         let mut view = setp
             .signal()
             .view_vec_indexed(|(a, _)| *a as usize, |(_, b)| b);
@@ -808,7 +807,7 @@ mod tests {
     #[test]
     fn test_vec_ordered() {
         let world = World::new();
-        let mut setp: CollectionPortal<i32, VecView<i32>> = CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new::<VecView<i32>>(&world);
         let mut view = setp.signal().view_vec_sorted(|i| *i);
         setp.add(2);
         setp.add(3);
@@ -827,7 +826,7 @@ mod tests {
     #[test]
     fn test_vec_ordered_replace() {
         let world = World::new();
-        let mut setp: CollectionPortal<i32, VecView<i32>> = CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new::<VecView<i32>>(&world);
         let mut view = setp.signal().view_vec_sorted(|i| *i / 2);
         setp.add(0);
         setp.add(1);
@@ -843,7 +842,7 @@ mod tests {
     #[test]
     fn test_vec_view() {
         let world = World::new();
-        let mut setp: CollectionPortal<i32, VecView<i32>> = CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new::<VecView<i32>>(&world);
         let mut view = setp.signal().view_vec();
         setp.add(0);
         setp.add(1);
@@ -859,7 +858,7 @@ mod tests {
     #[test]
     fn test_later_attachment_1() {
         let world = World::new();
-        let mut setp: CollectionPortal<i32, VecView<i32>> = CollectionPortal::new(&world);
+        let mut setp: CollectionPortal<i32> = CollectionPortal::new::<VecView<i32>>(&world);
         let mut view1 = setp.signal().view_vec();
         setp.add(0);
         setp.add(1);
@@ -870,4 +869,4 @@ mod tests {
         assert_eq!(view1.data(), &vec![0, 1, 3]);
         assert_eq!(view2.data(), &vec![0, 1, 3]);
     }
-}*/
+}
