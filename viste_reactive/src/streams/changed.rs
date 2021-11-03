@@ -1,9 +1,8 @@
-use crate::readers::ChangeReader;
 use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Changed<'a, T: Data + 'a> {
-    source: ParentValueSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
+    source: ParentValueSignal<'a, T>,
     store: BufferedStore<T>,
     node: NodeState,
 }
@@ -12,7 +11,7 @@ impl<'a, T: Data + 'a> Changed<'a, T> {
     pub fn new(world: World, source: ValueSignal<'a, T>) -> Self {
         let node = NodeState::new(world);
         Self {
-            source: ParentValueSignal::new(source, node.node()),
+            source: ParentValueSignal::new(source.0, node.node()),
             store: BufferedStore::new(),
             node,
         }
@@ -52,8 +51,8 @@ impl<'a, T: Data + 'a> ComputationCore for Changed<'a, T> {
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

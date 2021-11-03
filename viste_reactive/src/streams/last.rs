@@ -1,9 +1,8 @@
-use crate::readers::StreamReader;
 use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Last<'a, T: Data + 'a> {
-    source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, T>,
     value: SingleValueStore<T>,
     node: NodeState,
 }
@@ -12,7 +11,7 @@ impl<'a, T: Data + 'a> Last<'a, T> {
     pub fn new(world: World, source: StreamSignal<'a, T>, initial: T) -> Self {
         let node = NodeState::new(world);
         Self {
-            source: ParentStreamSignal::new(source, node.node()),
+            source: ParentSignal::new(source.0, node.node()),
             value: SingleValueStore::new(initial),
             node,
         }
@@ -57,8 +56,8 @@ impl<'a, T: Data + 'a> ComputationCore for Last<'a, T> {
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

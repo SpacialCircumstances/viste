@@ -1,9 +1,8 @@
-use crate::readers::{CachedReader, ChangeReader};
 use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Mapper<'a, I: Data, O: Data, M: Fn(I) -> O + 'a> {
-    source: ParentValueSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
+    source: ParentValueSignal<'a, I>,
     current_value: SingleValueStore<O>,
     mapper: M,
     node: NodeState,
@@ -13,8 +12,7 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> Mapper<'a, I, O, M> {
     pub fn new(world: World, source: ValueSignal<'a, I>, mapper: M) -> Self {
         let node = NodeState::new(world);
         info!("Mapper signal created: {}", node.node());
-        let mut source: ParentValueSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
-            ParentValueSignal::new(source, node.node());
+        let mut source: ParentValueSignal<I> = ParentValueSignal::new(source.0, node.node());
         let current_value = SingleValueStore::new(mapper(source.compute().unwrap_changed()));
         Mapper {
             source,
@@ -58,8 +56,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> ComputationCore for Map
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {
@@ -68,8 +66,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, M: Fn(I) -> O + 'a> ComputationCore for Map
 }
 
 pub struct Mapper2<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a> {
-    source1: ParentValueSignal<'a, I1, (bool, I1), CachedReader<'a, I1>>,
-    source2: ParentValueSignal<'a, I2, (bool, I2), CachedReader<'a, I2>>,
+    source1: ParentCachedValueSignal<'a, I1>,
+    source2: ParentCachedValueSignal<'a, I2>,
     current_value: SingleValueStore<O>,
     mapper: M,
     node: NodeState,
@@ -84,10 +82,10 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> Mapper2<'a, I1, I
     ) -> Self {
         let node = NodeState::new(world);
         info!("Mapper2 signal created: {}", node.node());
-        let mut source1: ParentValueSignal<'a, I1, (bool, I1), CachedReader<'a, I1>> =
-            ParentValueSignal::new(source1, node.node());
-        let mut source2: ParentValueSignal<'a, I2, (bool, I2), CachedReader<'a, I2>> =
-            ParentValueSignal::new(source2, node.node());
+        let mut source1: ParentCachedValueSignal<'a, I1> =
+            ParentCachedValueSignal::new(source1.0, node.node());
+        let mut source2: ParentCachedValueSignal<'a, I2> =
+            ParentCachedValueSignal::new(source2.0, node.node());
         let initial_value = mapper(source1.compute().1, source2.compute().1);
         Self {
             mapper,
@@ -136,8 +134,8 @@ impl<'a, I1: Data, I2: Data, O: Data, M: Fn(I1, I2) -> O + 'a> ComputationCore
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

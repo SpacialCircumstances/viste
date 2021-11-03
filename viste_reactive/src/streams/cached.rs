@@ -1,9 +1,8 @@
-use crate::readers::StreamReader;
 use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct Cached<'a, T: Data + 'a> {
-    source: ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>,
+    source: ParentStreamSignal<'a, T>,
     last: Option<T>,
     store: BufferedStore<T>,
     node: NodeState,
@@ -12,7 +11,7 @@ pub struct Cached<'a, T: Data + 'a> {
 impl<'a, T: Data + 'a> Cached<'a, T> {
     pub fn new(world: World, source: StreamSignal<'a, T>) -> Self {
         let node = NodeState::new(world);
-        let source = ParentStreamSignal::new(source, node.node());
+        let source = ParentSignal::new(source.0, node.node());
         Self {
             source,
             last: None,
@@ -63,8 +62,8 @@ impl<'a, T: Data + 'a> ComputationCore for Cached<'a, T> {
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {
