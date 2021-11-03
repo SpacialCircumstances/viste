@@ -9,10 +9,10 @@ pub struct FilterMapper<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 
 }
 
 impl<'a, T: Data + 'a, O: Data + 'a, F: Fn(T) -> Option<O> + 'a> FilterMapper<'a, T, O, F> {
-    pub fn new(world: World, source: StreamSignal<'a, T>, fmap: F) -> Self {
+    pub fn new(world: World, source: Signal<'a, Option<T>>, fmap: F) -> Self {
         let node = NodeState::new(world);
         Self {
-            source: ParentSignal::new(source.0, node.node()),
+            source: ParentSignal::new(source, node.node()),
             store: BufferedStore::new(),
             fmap,
             node,

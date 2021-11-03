@@ -64,7 +64,7 @@ impl<'a, T: Data + 'a> Drop for CachedReader<'a, T> {
 }
 
 pub struct StreamReader<'a, T: Data + 'a> {
-    signal: StreamSignal<'a, T>,
+    signal: Signal<'a, Option<T>>,
     token: ReaderToken,
 }
 
@@ -83,14 +83,11 @@ impl<'a, T: Data + 'a> Reader<'a, Option<T>> for StreamReader<'a, T> {
 
     fn new(signal: Signal<'a, Self::Result>) -> Self {
         let token = signal.create_reader();
-        Self {
-            signal: StreamSignal::new(signal),
-            token,
-        }
+        Self { signal, token }
     }
 
     fn read(&mut self) -> Self::Result {
-        self.signal.signal().compute(self.token)
+        self.signal.compute(self.token)
     }
 }
 
@@ -105,6 +102,6 @@ impl<'a, T: Data + 'a> IntoIterator for StreamReader<'a, T> {
 
 impl<'a, T: Data + 'a> Drop for StreamReader<'a, T> {
     fn drop(&mut self) {
-        self.signal.signal().destroy_reader(self.token)
+        self.signal.destroy_reader(self.token)
     }
 }

@@ -10,10 +10,10 @@ pub struct Mapper<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> {
 }
 
 impl<'a, T: Data + 'a, R: Data + 'a, M: Fn(T) -> R + 'a> Mapper<'a, T, R, M> {
-    pub fn new(world: World, source: StreamSignal<'a, T>, mapper: M) -> Self {
+    pub fn new(world: World, source: Signal<'a, Option<T>>, mapper: M) -> Self {
         let own_node = NodeState::new(world);
         Mapper {
-            source: ParentSignal::new(source.0, own_node.node()),
+            source: ParentSignal::new(source, own_node.node()),
             values: BufferedStore::new(),
             mapper,
             own_node,

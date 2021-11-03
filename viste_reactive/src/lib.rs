@@ -30,14 +30,8 @@ pub mod stores;
 mod streams;
 mod values;
 
-pub trait Data {
-    fn changed(&self, other: &Self) -> bool;
-    fn cheap_clone(&self) -> Self;
-}
-
-//TODO: Find a way to only impl for Rc, Arc, T: Copy
-impl<T: Clone + PartialEq> Data for T {
-    fn changed(&self, other: &T) -> bool {
+pub trait Data: PartialEq + Clone {
+    fn changed(&self, other: &Self) -> bool {
         self != other
     }
 
@@ -46,32 +40,8 @@ impl<T: Clone + PartialEq> Data for T {
     }
 }
 
-#[derive(Debug)]
-pub struct Distinct<T: Data>(T);
-
-impl<T: Data> Distinct<T> {
-    pub fn new(t: T) -> Self {
-        Self(t)
-    }
-
-    pub fn deconstruct(self) -> T {
-        self.0
-    }
-
-    pub fn get(&self) -> &T {
-        &self.0
-    }
-}
-
-impl<T: Data> Data for Distinct<T> {
-    fn changed(&self, _other: &Self) -> bool {
-        true
-    }
-
-    fn cheap_clone(&self) -> Self {
-        Distinct(self.0.cheap_clone())
-    }
-}
+//TODO: Remove
+impl<T: PartialEq + Clone> Data for T {}
 
 #[derive(Debug, Clone)]
 pub enum DirtyFlag {
@@ -341,11 +311,17 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     }
 }
 
+impl<'a, T: Data + 'a> Signal<'a, Option<T>> {
+    pub fn collect(&self) -> Collector<'a, T> {
+        Collector::new(StreamReader::new(self.clone()))
+    }
+}
+
 impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> StreamSignal<'a, R> {
         StreamSignal::new(Signal::create(streams::mapper::Mapper::new(
             self.signal().world(),
-            self.clone(),
+            self.signal().clone(),
             mapper,
         )))
     }
@@ -361,7 +337,7 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     pub fn filter<F: Fn(&T) -> bool + 'a>(&self, filter: F) -> StreamSignal<'a, T> {
         StreamSignal::new(Signal::create(streams::filter::Filter::new(
             self.signal().world(),
-            self.clone(),
+            self.signal().clone(),
             filter,
         )))
     }
@@ -374,7 +350,7 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     }
 
     pub fn collect(&self) -> Collector<'a, T> {
-        Collector::new(StreamReader::new(self.clone().0))
+        self.signal().collect()
     }
 
     pub fn filter_map<O: Data + 'a, F: Fn(T) -> Option<O> + 'a>(
@@ -383,7 +359,7 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     ) -> StreamSignal<'a, O> {
         StreamSignal::create(streams::filter_mapper::FilterMapper::new(
             self.signal().world(),
-            self.clone(),
+            self.signal().clone(),
             fmap,
         ))
     }
