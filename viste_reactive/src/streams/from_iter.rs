@@ -53,8 +53,8 @@ impl<'a, T: Data + 'a> ComputationCore for FromIter<'a, T> {
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

@@ -8,9 +8,9 @@ pub fn simple_benchmark(c: &mut Criterion) {
             let (set, s) = mutable(&world, 1);
             let m = s.map(|x| x + 1);
             set(black_box(5));
-            let r = m.create_reader();
-            let res = m.compute(r);
-            m.destroy_reader(r);
+            let r = m.signal().create_reader();
+            let res = m.signal().compute(r);
+            m.signal().destroy_reader(r);
             res.unwrap_changed();
         })
     });
@@ -48,9 +48,9 @@ pub fn values_benchmark(c: &mut Criterion) {
                 }
             }
 
-            let r = root.create_reader();
-            let v = root.compute(r).unwrap_changed();
-            root.destroy_reader(r);
+            let r = root.signal().create_reader();
+            let v = root.signal().compute(r).unwrap_changed();
+            root.signal().destroy_reader(r);
         })
     });
 }
@@ -77,9 +77,9 @@ pub fn stream_benchmark(c: &mut Criterion) {
                     }
                 }
 
-                let r = c.create_reader();
-                let res = c.compute(r).unwrap_changed();
-                c.destroy_reader(r);
+                let r = c.signal().create_reader();
+                let res = c.signal().compute(r).unwrap_changed();
+                c.signal().destroy_reader(r);
             }
         })
     });

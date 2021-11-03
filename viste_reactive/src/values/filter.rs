@@ -1,9 +1,8 @@
-use crate::readers::ChangeReader;
 use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Filter<'a, T: Data, F: Fn(&T) -> bool + 'a> {
-    source: ParentValueSignal<'a, T, SingleComputationResult<T>, ChangeReader<'a, T>>,
+    source: ParentValueSignal<'a, T>,
     current_value: SingleValueStore<T>,
     filter: F,
     node: NodeState,
@@ -13,7 +12,7 @@ impl<'a, T: Data, F: Fn(&T) -> bool + 'a> Filter<'a, T, F> {
     pub fn new(world: World, parent: ValueSignal<'a, T>, initial: T, filter: F) -> Self {
         let node = NodeState::new(world);
         info!("Filter signal created: {}", node.node());
-        let source = ParentValueSignal::new(parent, node.node());
+        let source = ParentValueSignal::new(parent.0, node.node());
         Self {
             source,
             filter,
@@ -58,8 +57,8 @@ impl<'a, T: Data + 'a, F: Fn(&T) -> bool + 'a> ComputationCore for Filter<'a, T,
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

@@ -1,11 +1,10 @@
-use crate::readers::{CachedReader, ChangeReader};
 use crate::stores::{SingleValueStore, Store};
 use crate::*;
 
 pub struct Binder<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> {
     binder: B,
-    current_signal: ParentValueSignal<'a, O, SingleComputationResult<O>, ChangeReader<'a, O>>,
-    parent: ParentValueSignal<'a, I, SingleComputationResult<I>, ChangeReader<'a, I>>,
+    current_signal: ParentValueSignal<'a, O>,
+    parent: ParentValueSignal<'a, I>,
     current_value: SingleValueStore<O>,
     node: NodeState,
 }
@@ -14,10 +13,9 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Binder
     pub fn new(world: World, parent: ValueSignal<'a, I>, binder: B) -> Self {
         let node = NodeState::new(world);
         info!("Binder signal created: {}", node.node());
-        let mut parent: ParentValueSignal<I, SingleComputationResult<I>, ChangeReader<I>> =
-            ParentValueSignal::new(parent, node.node());
-        let mut initial_signal: ParentValueSignal<O, SingleComputationResult<O>, ChangeReader<O>> =
-            ParentValueSignal::new(binder(parent.compute().unwrap_changed()), node.node());
+        let mut parent: ParentValueSignal<I> = ParentValueSignal::new(parent.0, node.node());
+        let mut initial_signal: ParentValueSignal<O> =
+            ParentValueSignal::new(binder(parent.compute().unwrap_changed()).0, node.node());
         let current_value = SingleValueStore::new(initial_signal.compute().unwrap_changed());
         Binder {
             binder,
@@ -38,7 +36,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Comput
         if self.node.is_dirty() {
             self.node.clean();
             if let SingleComputationResult::Changed(new_source) = self.parent.compute() {
-                self.current_signal.set_parent((self.binder)(new_source));
+                let new_signal = (self.binder)(new_source);
+                self.current_signal.set_parent(new_signal.0);
             }
             if let SingleComputationResult::Changed(new_value) = self.current_signal.compute() {
                 self.current_value.set_value(new_value)
@@ -67,8 +66,8 @@ impl<'a, I: Data + 'a, O: Data + 'a, B: Fn(I) -> ValueSignal<'a, O> + 'a> Comput
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {
@@ -84,9 +83,9 @@ pub struct Binder2<
     B: Fn(I1, I2) -> ValueSignal<'a, O> + 'a,
 > {
     binder: B,
-    current_signal: ParentValueSignal<'a, O, SingleComputationResult<O>, ChangeReader<'a, O>>,
-    parent1: ParentValueSignal<'a, I1, (bool, I1), CachedReader<'a, I1>>,
-    parent2: ParentValueSignal<'a, I2, (bool, I2), CachedReader<'a, I2>>,
+    current_signal: ParentValueSignal<'a, O>,
+    parent1: ParentCachedValueSignal<'a, I1>,
+    parent2: ParentCachedValueSignal<'a, I2>,
     current_value: SingleValueStore<O>,
     node: NodeState,
 }
@@ -102,15 +101,14 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, B: Fn(I1, I2) -> ValueSigna
     ) -> Self {
         let node = NodeState::new(world);
         info!("Binder2 signal created: {}", node.node());
-        let mut parent1: ParentValueSignal<I1, (bool, I1), CachedReader<'a, I1>> =
-            ParentValueSignal::new(parent1, node.node());
-        let mut parent2: ParentValueSignal<I2, (bool, I2), CachedReader<'a, I2>> =
-            ParentValueSignal::new(parent2, node.node());
-        let mut initial_signal: ParentValueSignal<O, SingleComputationResult<O>, ChangeReader<O>> =
-            ParentValueSignal::new(
-                binder(parent1.compute().1, parent2.compute().1),
-                node.node(),
-            );
+        let mut parent1: ParentCachedValueSignal<I1> =
+            ParentCachedValueSignal::new(parent1.0, node.node());
+        let mut parent2: ParentCachedValueSignal<I2> =
+            ParentCachedValueSignal::new(parent2.0, node.node());
+        let mut initial_signal: ParentValueSignal<O> = ParentValueSignal::new(
+            binder(parent1.compute().1, parent2.compute().1).0,
+            node.node(),
+        );
         let current_value = SingleValueStore::new(initial_signal.compute().unwrap_changed());
         Binder2 {
             binder,
@@ -134,7 +132,8 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, B: Fn(I1, I2) -> ValueSigna
             let (changed1, s1) = self.parent1.compute();
             let (changed2, s2) = self.parent2.compute();
             if changed1 || changed2 {
-                self.current_signal.set_parent((self.binder)(s1, s2));
+                let new_signal = (self.binder)(s1, s2);
+                self.current_signal.set_parent(new_signal.0);
             }
             if let SingleComputationResult::Changed(new_value) = self.current_signal.compute() {
                 self.current_value.set_value(new_value)
@@ -163,8 +162,8 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, B: Fn(I1, I2) -> ValueSigna
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

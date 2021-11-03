@@ -1,10 +1,9 @@
-use crate::readers::StreamReader;
 use crate::stores::{BufferedStore, Store};
 use crate::*;
 use std::collections::HashMap;
 
 pub struct Many<'a, T: Data + 'a> {
-    sources: HashMap<NodeIndex, ParentStreamSignal<'a, T, Option<T>, StreamReader<'a, T>>>,
+    sources: HashMap<NodeIndex, ParentStreamSignal<'a, T>>,
     values: BufferedStore<T>,
     node: NodeState,
 }
@@ -14,7 +13,12 @@ impl<'a, T: Data + 'a> Many<'a, T> {
         let node = NodeState::new(world);
         let sources = sources
             .into_iter()
-            .map(|signal| (signal.node(), ParentStreamSignal::new(signal, node.node())))
+            .map(|signal| {
+                (
+                    signal.signal().node(),
+                    ParentSignal::new(signal.0, node.node()),
+                )
+            })
             .collect();
         Many {
             node,
@@ -74,8 +78,8 @@ impl<'a, T: Data + 'a> ComputationCore for Many<'a, T> {
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {

@@ -1,10 +1,9 @@
-use crate::readers::StreamReader;
 use crate::stores::{BufferedStore, Store};
 use crate::*;
 
 pub struct ZipMapper<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a> {
-    source1: ParentStreamSignal<'a, I1, Option<I1>, StreamReader<'a, I1>>,
-    source2: ParentStreamSignal<'a, I2, Option<I2>, StreamReader<'a, I2>>,
+    source1: ParentStreamSignal<'a, I1>,
+    source2: ParentStreamSignal<'a, I2>,
     cached_value1: Option<I1>,
     cached_value2: Option<I2>,
     store: BufferedStore<O>,
@@ -22,8 +21,8 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a>
         mapper: M,
     ) -> Self {
         let node = NodeState::new(world);
-        let source1 = ParentStreamSignal::new(source1, node.node());
-        let source2 = ParentStreamSignal::new(source2, node.node());
+        let source1 = ParentSignal::new(source1.0, node.node());
+        let source2 = ParentSignal::new(source2.0, node.node());
         Self {
             cached_value1: None,
             cached_value2: None,
@@ -86,8 +85,8 @@ impl<'a, I1: Data + 'a, I2: Data + 'a, O: Data + 'a, M: Fn(I1, I2) -> O + 'a> Co
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {
