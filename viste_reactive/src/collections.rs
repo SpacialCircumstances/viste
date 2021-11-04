@@ -171,6 +171,10 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
         &self.0
     }
 
+    pub fn to_signal(self) -> Signal<'a, Option<SetChange<T>>> {
+        self.0
+    }
+
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> CollectionSignal<'a, R> {
         CollectionSignal(Signal::create(
             CollectionComputationCore::<R, VecView<R>>::new(Signal::create(

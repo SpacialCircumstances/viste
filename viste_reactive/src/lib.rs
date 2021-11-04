@@ -281,7 +281,7 @@ impl<'a, T> PartialEq for Signal<'a, T> {
 
 impl<'a, T> Eq for Signal<'a, T> {}
 
-pub struct StreamSignal<'a, T: Data + 'a>(pub Signal<'a, Option<T>>);
+pub struct StreamSignal<'a, T: Data + 'a>(Signal<'a, Option<T>>);
 
 impl<'a, T: Data + 'a> Clone for StreamSignal<'a, T> {
     fn clone(&self) -> Self {
@@ -308,6 +308,10 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
 
     pub fn signal(&self) -> &Signal<'a, Option<T>> {
         &self.0
+    }
+
+    pub fn to_signal(self) -> Signal<'a, Option<T>> {
+        self.0
     }
 }
 
@@ -378,7 +382,7 @@ impl<'a, T: Data + 'a> StreamSignal<'a, T> {
     }
 }
 
-pub struct ValueSignal<'a, T: Data + 'a>(pub Signal<'a, SingleComputationResult<T>>);
+pub struct ValueSignal<'a, T: Data + 'a>(Signal<'a, SingleComputationResult<T>>);
 
 impl<'a, T: Data + 'a> Clone for ValueSignal<'a, T> {
     fn clone(&self) -> Self {
@@ -407,6 +411,10 @@ impl<'a, T: Data + 'a> ValueSignal<'a, T> {
 
     pub fn signal(&self) -> &Signal<'a, SingleComputationResult<T>> {
         &self.0
+    }
+
+    pub fn to_signal(self) -> Signal<'a, SingleComputationResult<T>> {
+        self.0
     }
 
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> ValueSignal<'a, R> {
