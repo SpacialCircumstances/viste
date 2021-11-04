@@ -3,7 +3,6 @@ use crate::*;
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
-use std::marker::PhantomData;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SetChange<T: Data> {
@@ -24,31 +23,6 @@ pub trait View<'a, T: Data + 'a> {
 
 pub trait DirectView<'a, T: Data + 'a>: View<'a, T, Item = T> {
     fn new(collector: Collector<'a, SetChange<T>>) -> Self;
-}
-
-#[derive(Eq, PartialEq)]
-pub struct SharedView<'a, T: Data + 'a, V: View<'a, T>>(Rc<RefCell<V>>, PhantomData<&'a T>);
-
-impl<'a, T: Data + 'a, V: View<'a, T>> Clone for SharedView<'a, T, V> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone(), PhantomData::default())
-    }
-}
-
-impl<'a, T: Data + 'a, V: View<'a, T>> SharedView<'a, T, V> {
-    pub fn new(view: V) -> Self {
-        Self(Rc::new(RefCell::new(view)), PhantomData::default())
-    }
-
-    pub fn to_queue<R: Data>(&self) -> VecDeque<SetChange<R>>
-    where
-        V: View<'a, T, Item = R>,
-    {
-        let mut view = self.0.borrow_mut();
-        view.iter()
-            .map(|t| SetChange::Added(t.cheap_clone()))
-            .collect()
-    }
 }
 
 struct InitialItems<Item: Data>(Rc<RefCell<HashMap<ReaderToken, VecDeque<Item>>>>);
@@ -94,7 +68,7 @@ impl<Item: Data> InitialItems<Item> {
 
 pub struct CollectionComputationCore<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> {
     stream_signal: Signal<'a, Option<SetChange<T>>>,
-    view: SharedView<'a, T, D>,
+    view: D,
     initial_items: InitialItems<SetChange<T>>,
 }
 
@@ -102,9 +76,13 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> CollectionComputationCore<'a, 
     pub fn new(signal: Signal<'a, Option<SetChange<T>>>) -> Self {
         Self {
             stream_signal: signal.clone(),
-            view: SharedView::new(D::new(signal.collect())),
+            view: D::new(signal.collect()),
             initial_items: InitialItems::new(),
         }
+    }
+
+    pub fn iter_view_items(&mut self) -> impl Iterator<Item = &T> {
+        self.view.iter()
     }
 }
 
@@ -121,7 +99,11 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> ComputationCore
 
     fn create_reader(&mut self) -> ReaderToken {
         let r = self.stream_signal.create_reader();
-        self.initial_items.insert(r, self.view.to_queue());
+        let items = self
+            .iter_view_items()
+            .map(|t| SetChange::Added(t.cheap_clone()))
+            .collect();
+        self.initial_items.insert(r, items);
         r
     }
 
