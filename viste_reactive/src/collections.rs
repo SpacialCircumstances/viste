@@ -151,7 +151,7 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> ComputationCore
     }
 }
 
-pub struct CollectionSignal<'a, T: Data + 'a>(Signal<'a, Option<SetChange<T>>>);
+pub struct CollectionSignal<'a, T: Data + 'a>(pub Signal<'a, Option<SetChange<T>>>);
 
 impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
     pub fn new<D: DirectView<'a, T> + 'a>(signal: StreamSignal<'a, SetChange<T>>) -> Self {

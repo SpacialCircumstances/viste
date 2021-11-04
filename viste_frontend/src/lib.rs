@@ -19,19 +19,9 @@ impl Attribute {
 
 pub struct ReactiveHtml<'a> {
     attributes: Collector<'a, SetChange<Attribute>>,
-    attributes_signal: ParentStreamSignal<
-        'a,
-        SetChange<Attribute>,
-        Option<SetChange<Attribute>>,
-        StreamReader<'a, SetChange<Attribute>>,
-    >,
+    attributes_signal: ParentStreamSignal<'a, SetChange<Attribute>>,
     children: Collector<'a, SetChange<HtmlSignal<'a>>>,
-    children_signal: ParentStreamSignal<
-        'a,
-        SetChange<HtmlSignal<'a>>,
-        Option<SetChange<HtmlSignal<'a>>>,
-        StreamReader<'a, SetChange<HtmlSignal<'a>>>,
-    >,
+    children_signal: ParentStreamSignal<'a, SetChange<HtmlSignal<'a>>>,
     node: NodeState,
     dom: Element,
 }
@@ -45,10 +35,10 @@ impl<'a> ReactiveHtml<'a> {
     ) -> Self {
         let node = NodeState::new(world);
         ReactiveHtml {
-            attributes_signal: ParentStreamSignal::new(attributes.changes(), node.node()),
-            children_signal: ParentStreamSignal::new(children.changes(), node.node()),
-            attributes: attributes.changes().collect(),
-            children: children.changes().collect(),
+            attributes: attributes.signal().collect(),
+            children: children.signal().collect(),
+            attributes_signal: ParentStreamSignal::new(attributes.0, node.node()),
+            children_signal: ParentStreamSignal::new(children.0, node.node()),
             node,
             dom,
         }
@@ -71,7 +61,16 @@ impl<'a> ReactiveHtml<'a> {
         }
     }
 
-    fn reconcile_child(&self, change: &SetChange<HtmlSignal<'a>>) {}
+    fn reconcile_child(&self, change: &SetChange<HtmlSignal<'a>>) {
+        match change {
+            SetChange::Clear => {
+                while let Some(c) = self.dom.first_child() {
+                    self.dom.remove_child(&c);
+                }
+            }
+            _ => (),
+        }
+    }
 }
 
 impl<'a> ComputationCore for ReactiveHtml<'a> {
@@ -111,8 +110,8 @@ impl<'a> ComputationCore for ReactiveHtml<'a> {
         self.node.is_dirty()
     }
 
-    fn world(&self) -> &World {
-        self.node.world()
+    fn world(&self) -> World {
+        self.node.world().clone()
     }
 
     fn node(&self) -> NodeIndex {
