@@ -25,34 +25,25 @@ pub trait DirectView<'a, T: Data + 'a>: View<'a, T, Item = T> {
     fn new(collector: Collector<'a, SetChange<T>>) -> Self;
 }
 
-struct InitialItems<Item: Data>(Rc<RefCell<HashMap<ReaderToken, VecDeque<Item>>>>);
-
-impl<Item: Data> Clone for InitialItems<Item> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
+struct InitialItems<Item: Data>(HashMap<ReaderToken, VecDeque<Item>>);
 
 impl<Item: Data> InitialItems<Item> {
     pub fn new() -> Self {
-        Self(Rc::new(RefCell::new(HashMap::new())))
+        Self(HashMap::new())
     }
 
-    pub fn insert(&self, reader: ReaderToken, items: VecDeque<Item>) {
+    pub fn insert(&mut self, reader: ReaderToken, items: VecDeque<Item>) {
         if !items.is_empty() {
-            let mut hm = self.0.borrow_mut();
-            hm.insert(reader, items);
+            self.0.insert(reader, items);
         }
     }
 
-    pub fn remove(&self, reader: ReaderToken) {
-        let mut hm = self.0.borrow_mut();
-        hm.remove(&reader);
+    pub fn remove(&mut self, reader: ReaderToken) {
+        self.0.remove(&reader);
     }
 
-    pub fn get_next(&self, reader: ReaderToken) -> Option<Item> {
-        let mut hm = self.0.borrow_mut();
-        match hm.entry(reader) {
+    pub fn get_next(&mut self, reader: ReaderToken) -> Option<Item> {
+        match self.0.entry(reader) {
             Entry::Vacant(_) => None,
             Entry::Occupied(mut entry) => {
                 let deq = entry.get_mut();
