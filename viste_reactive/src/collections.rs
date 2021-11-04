@@ -25,9 +25,9 @@ pub trait DirectView<'a, T: Data + 'a>: View<'a, T, Item = T> {
     fn new(collector: Collector<'a, SetChange<T>>) -> Self;
 }
 
-struct InitialItems<Item: Data>(HashMap<ReaderToken, VecDeque<Item>>);
+struct StateItems<Item: Data>(HashMap<ReaderToken, VecDeque<Item>>);
 
-impl<Item: Data> InitialItems<Item> {
+impl<Item: Data> StateItems<Item> {
     pub fn new() -> Self {
         Self(HashMap::new())
     }
@@ -60,7 +60,7 @@ impl<Item: Data> InitialItems<Item> {
 pub struct CollectionComputationCore<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> {
     stream_signal: Signal<'a, Option<SetChange<T>>>,
     view: D,
-    initial_items: InitialItems<SetChange<T>>,
+    state_items: StateItems<SetChange<T>>,
 }
 
 impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> CollectionComputationCore<'a, T, D> {
@@ -68,7 +68,7 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> CollectionComputationCore<'a, 
         Self {
             stream_signal: signal.clone(),
             view: D::new(signal.collect()),
-            initial_items: InitialItems::new(),
+            state_items: StateItems::new(),
         }
     }
 
@@ -83,7 +83,7 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> ComputationCore
     type ComputationResult = Option<SetChange<T>>;
 
     fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult {
-        self.initial_items
+        self.state_items
             .get_next(reader)
             .or_else(|| self.stream_signal.compute(reader))
     }
@@ -94,12 +94,12 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> ComputationCore
             .iter_view_items()
             .map(|t| SetChange::Added(t.cheap_clone()))
             .collect();
-        self.initial_items.insert(r, items);
+        self.state_items.insert(r, items);
         r
     }
 
     fn destroy_reader(&mut self, reader: ReaderToken) {
-        self.initial_items.remove(reader);
+        self.state_items.remove(reader);
         self.stream_signal.destroy_reader(reader)
     }
 
