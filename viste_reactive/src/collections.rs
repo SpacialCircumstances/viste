@@ -3,7 +3,6 @@ use crate::*;
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
-use std::marker::PhantomData;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SetChange<T: Data> {
@@ -26,59 +25,25 @@ pub trait DirectView<'a, T: Data + 'a>: View<'a, T, Item = T> {
     fn new(collector: Collector<'a, SetChange<T>>) -> Self;
 }
 
-#[derive(Eq, PartialEq)]
-pub struct SharedView<'a, T: Data + 'a, V: View<'a, T>>(Rc<RefCell<V>>, PhantomData<&'a T>);
+struct StateItems<Item: Data>(HashMap<ReaderToken, VecDeque<Item>>);
 
-impl<'a, T: Data + 'a, V: View<'a, T>> Clone for SharedView<'a, T, V> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone(), PhantomData::default())
-    }
-}
-
-impl<'a, T: Data + 'a, V: View<'a, T>> SharedView<'a, T, V> {
-    pub fn new(view: V) -> Self {
-        Self(Rc::new(RefCell::new(view)), PhantomData::default())
-    }
-
-    pub fn to_queue<R: Data>(&self) -> VecDeque<SetChange<R>>
-    where
-        V: View<'a, T, Item = R>,
-    {
-        let mut view = self.0.borrow_mut();
-        view.iter()
-            .map(|t| SetChange::Added(t.cheap_clone()))
-            .collect()
-    }
-}
-
-struct InitialItems<Item: Data>(Rc<RefCell<HashMap<ReaderToken, VecDeque<Item>>>>);
-
-impl<Item: Data> Clone for InitialItems<Item> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<Item: Data> InitialItems<Item> {
+impl<Item: Data> StateItems<Item> {
     pub fn new() -> Self {
-        Self(Rc::new(RefCell::new(HashMap::new())))
+        Self(HashMap::new())
     }
 
-    pub fn insert(&self, reader: ReaderToken, items: VecDeque<Item>) {
+    pub fn insert(&mut self, reader: ReaderToken, items: VecDeque<Item>) {
         if !items.is_empty() {
-            let mut hm = self.0.borrow_mut();
-            hm.insert(reader, items);
+            self.0.insert(reader, items);
         }
     }
 
-    pub fn remove(&self, reader: ReaderToken) {
-        let mut hm = self.0.borrow_mut();
-        hm.remove(&reader);
+    pub fn remove(&mut self, reader: ReaderToken) {
+        self.0.remove(&reader);
     }
 
-    pub fn get_next(&self, reader: ReaderToken) -> Option<Item> {
-        let mut hm = self.0.borrow_mut();
-        match hm.entry(reader) {
+    pub fn get_next(&mut self, reader: ReaderToken) -> Option<Item> {
+        match self.0.entry(reader) {
             Entry::Vacant(_) => None,
             Entry::Occupied(mut entry) => {
                 let deq = entry.get_mut();
@@ -94,17 +59,21 @@ impl<Item: Data> InitialItems<Item> {
 
 pub struct CollectionComputationCore<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> {
     stream_signal: Signal<'a, Option<SetChange<T>>>,
-    view: SharedView<'a, T, D>,
-    initial_items: InitialItems<SetChange<T>>,
+    view: D,
+    state_items: StateItems<SetChange<T>>,
 }
 
 impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> CollectionComputationCore<'a, T, D> {
     pub fn new(signal: Signal<'a, Option<SetChange<T>>>) -> Self {
         Self {
             stream_signal: signal.clone(),
-            view: SharedView::new(D::new(signal.collect())),
-            initial_items: InitialItems::new(),
+            view: D::new(signal.collect()),
+            state_items: StateItems::new(),
         }
+    }
+
+    pub fn iter_view_items(&mut self) -> impl Iterator<Item = &T> {
+        self.view.iter()
     }
 }
 
@@ -114,19 +83,23 @@ impl<'a, T: Data + 'a, D: DirectView<'a, T> + 'a> ComputationCore
     type ComputationResult = Option<SetChange<T>>;
 
     fn compute(&mut self, reader: ReaderToken) -> Self::ComputationResult {
-        self.initial_items
+        self.state_items
             .get_next(reader)
             .or_else(|| self.stream_signal.compute(reader))
     }
 
     fn create_reader(&mut self) -> ReaderToken {
         let r = self.stream_signal.create_reader();
-        self.initial_items.insert(r, self.view.to_queue());
+        let items = self
+            .iter_view_items()
+            .map(|t| SetChange::Added(t.cheap_clone()))
+            .collect();
+        self.state_items.insert(r, items);
         r
     }
 
     fn destroy_reader(&mut self, reader: ReaderToken) {
-        self.initial_items.remove(reader);
+        self.state_items.remove(reader);
         self.stream_signal.destroy_reader(reader)
     }
 
@@ -169,6 +142,10 @@ impl<'a, T: Data + 'a> CollectionSignal<'a, T> {
 
     pub fn signal(&self) -> &Signal<'a, Option<SetChange<T>>> {
         &self.0
+    }
+
+    pub fn to_signal(self) -> Signal<'a, Option<SetChange<T>>> {
+        self.0
     }
 
     pub fn map<R: Data + 'a, M: Fn(T) -> R + 'a>(&self, mapper: M) -> CollectionSignal<'a, R> {
