@@ -37,8 +37,8 @@ impl<'a> ReactiveHtml<'a> {
         ReactiveHtml {
             attributes: attributes.signal().collect(),
             children: children.signal().collect(),
-            attributes_signal: ParentStreamSignal::new(attributes.0, node.node()),
-            children_signal: ParentStreamSignal::new(children.0, node.node()),
+            attributes_signal: ParentStreamSignal::new(attributes.to_signal(), node.node()),
+            children_signal: ParentStreamSignal::new(children.to_signal(), node.node()),
             node,
             dom,
         }
