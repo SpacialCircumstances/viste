@@ -115,7 +115,7 @@ impl<'a> ComputationCore for ReactiveHtml<'a> {
     }
 
     fn node(&self) -> NodeIndex {
-        todo!()
+        self.node.node()
     }
 }
 
