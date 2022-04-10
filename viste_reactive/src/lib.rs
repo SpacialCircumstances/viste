@@ -108,17 +108,39 @@ pub enum DirtyingCause {
     Parent(NodeIndex),
 }
 
+pub trait ChangeListener {
+    fn marked(&self, node: NodeIndex, cause: DirtyingCause);
+}
+
 struct WorldData {
     dependencies: Graph<DirtyFlag>,
 }
 
-pub struct World(Rc<RefCell<WorldData>>);
+pub struct World(Rc<RefCell<WorldData>>, Option<Rc<dyn ChangeListener>>);
 
 impl World {
     pub fn new() -> Self {
-        World(Rc::new(RefCell::new(WorldData {
-            dependencies: Graph::new(),
-        })))
+        World(
+            Rc::new(RefCell::new(WorldData {
+                dependencies: Graph::new(),
+            })),
+            None,
+        )
+    }
+
+    pub fn with_listener(listener: Rc<dyn ChangeListener>) -> Self {
+        World(
+            Rc::new(RefCell::new(WorldData {
+                dependencies: Graph::new(),
+            })),
+            Some(listener),
+        )
+    }
+
+    fn notify_marked(&self, node: NodeIndex, cause: DirtyingCause) {
+        if let Some(cl) = &self.1 {
+            cl.marked(node, cause);
+        }
     }
 
     pub fn mark_dirty(&self, node: NodeIndex, cause: DirtyingCause) {
@@ -129,6 +151,7 @@ impl World {
                 |child, child_idx, state| {
                     let was_dirtied = child.mark(state);
                     if was_dirtied {
+                        self.notify_marked(child_idx, state);
                         SearchContinuation::Continue(DirtyingCause::Parent(child_idx))
                     } else {
                         SearchContinuation::Stop
@@ -191,7 +214,7 @@ impl Default for World {
 
 impl Clone for World {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self(self.0.clone(), self.1.clone())
     }
 }
 
