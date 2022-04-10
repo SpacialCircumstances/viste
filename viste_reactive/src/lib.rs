@@ -110,6 +110,8 @@ pub enum DirtyingCause {
 
 pub trait ChangeListener {
     fn marked(&self, node: NodeIndex, cause: DirtyingCause);
+    fn created(&self, node: NodeIndex);
+    fn destroyed(&self, node: NodeIndex);
 }
 
 struct WorldData {
@@ -180,14 +182,25 @@ impl World {
     }
 
     pub fn create_node(&self) -> NodeIndex {
-        self.0
+        let ni = self
+            .0
             .borrow_mut()
             .dependencies
-            .add_node(DirtyFlag::dirty())
+            .add_node(DirtyFlag::dirty());
+
+        if let Some(cl) = &self.1 {
+            cl.created(ni)
+        }
+
+        ni
     }
 
     pub fn destroy_node(&self, node: NodeIndex) {
         self.0.borrow_mut().dependencies.remove_node(node);
+
+        if let Some(cl) = &self.1 {
+            cl.destroyed(node);
+        }
     }
 
     pub fn add_dependency(&self, parent: NodeIndex, child: NodeIndex) {
